@@ -1,0 +1,968 @@
+openapi: 3.0.3
+info:
+  title: Wyjqwy API
+  version: 1.0.0
+  description: |
+    单用户口径记账 API（无账本）。
+    统一响应：{ code, message, data }
+servers:
+  - url: http://localhost:8089
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Category
+  - name: Transaction
+  - name: Template
+  - name: Stats
+  - name: ImportExport
+  - name: Restore
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: 注册
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: 登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthTokenResponse'
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 刷新 token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthTokenResponse'
+
+  /api/categories:
+    get:
+      tags: [Category]
+      summary: 分类列表（系统+用户）
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [1, 2]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+    post:
+      tags: [Category]
+      summary: 创建分类（仅用户自建）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/categories/{id}:
+    put:
+      tags: [Category]
+      summary: 更新分类（仅用户自建）
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+    delete:
+      tags: [Category]
+      summary: 删除分类（仅用户自建）
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/transactions:
+    get:
+      tags: [Transaction]
+      summary: 交易分页查询
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: type
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TransactionPage'
+    post:
+      tags: [Transaction]
+      summary: 创建交易
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/transactions/{id}:
+    put:
+      tags: [Transaction]
+      summary: 更新交易
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+    delete:
+      tags: [Transaction]
+      summary: 删除交易
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/templates:
+    get:
+      tags: [Template]
+      summary: 模板分页查询
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TemplatePage'
+    post:
+      tags: [Template]
+      summary: 创建模板
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/templates/{id}:
+    put:
+      tags: [Template]
+      summary: 更新模板
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+    delete:
+      tags: [Template]
+      summary: 删除模板
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/templates/{id}/apply:
+    post:
+      tags: [Template]
+      summary: 应用模板生成交易
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseVoid'
+
+  /api/stats/summary:
+    get:
+      tags: [Stats]
+      summary: 收支汇总
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StatsSummary'
+
+  /api/stats/trend:
+    get:
+      tags: [Stats]
+      summary: 趋势数据
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: type
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: granularity
+          in: query
+          schema:
+            type: string
+            enum: [day, month]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrendPoint'
+
+  /api/stats/by-category:
+    get:
+      tags: [Stats]
+      summary: 分类统计
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: integer
+            enum: [1, 2]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryStat'
+
+  /api/export:
+    get:
+      tags: [ImportExport]
+      summary: 导出数据（JSON）
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json]
+            default: json
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExportPayload'
+
+  /api/import:
+    post:
+      tags: [ImportExport]
+      summary: 导入数据（支持 dry-run 和冲突策略）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ImportResult'
+
+  /api/restore:
+    post:
+      tags: [Restore]
+      summary: 发起恢复任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RestoreTaskCreated'
+
+  /api/restore/{taskId}:
+    get:
+      tags: [Restore]
+      summary: 查询恢复任务状态
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RestoreTaskStatus'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  schemas:
+    ApiResponseBase:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: ok
+        data:
+          nullable: true
+
+    ApiResponseVoid:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              nullable: true
+              example: null
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    TokenRefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthTokenResponse:
+      type: object
+      required: [accessToken, refreshToken]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+
+    Category:
+      type: object
+      required: [id, type, name, sort]
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+          description: 0=系统分类，其他=用户分类
+        isSystem:
+          type: boolean
+          description: 建议后端返回，便于前端禁用编辑删除
+        type:
+          type: integer
+          enum: [1, 2]
+        name:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        sort:
+          type: integer
+
+    CategoryUpsertRequest:
+      type: object
+      required: [type, name]
+      properties:
+        type:
+          type: integer
+          enum: [1, 2]
+        name:
+          type: string
+          maxLength: 30
+        icon:
+          type: string
+          nullable: true
+          maxLength: 50
+        sort:
+          type: integer
+          nullable: true
+
+    TransactionItem:
+      type: object
+      required: [id, type, amount, categoryId, categoryName, occurredAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: integer
+          enum: [1, 2]
+        amount:
+          type: number
+          format: double
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        occurredAt:
+          type: string
+          format: date-time
+
+    TransactionUpsertRequest:
+      type: object
+      required: [type, amount, categoryId, occurredAt]
+      properties:
+        type:
+          type: integer
+          enum: [1, 2]
+        amount:
+          type: number
+          format: double
+        categoryId:
+          type: integer
+          format: int64
+        note:
+          type: string
+          nullable: true
+          maxLength: 200
+        occurredAt:
+          type: string
+          format: date-time
+
+    TemplateItem:
+      type: object
+      required: [id, type, categoryId, categoryName, sort]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: integer
+          enum: [1, 2]
+        amount:
+          type: number
+          format: double
+          nullable: true
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        sort:
+          type: integer
+
+    TemplateUpsertRequest:
+      type: object
+      required: [type, categoryId]
+      properties:
+        type:
+          type: integer
+          enum: [1, 2]
+        amount:
+          type: number
+          format: double
+          nullable: true
+        categoryId:
+          type: integer
+          format: int64
+        note:
+          type: string
+          nullable: true
+          maxLength: 200
+        sort:
+          type: integer
+          nullable: true
+
+    StatsSummary:
+      type: object
+      required: [totalIncome, totalExpense, balance]
+      properties:
+        totalIncome:
+          type: number
+          format: double
+        totalExpense:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
+
+    TrendPoint:
+      type: object
+      properties:
+        period:
+          type: string
+        amount:
+          type: number
+          format: double
+
+    CategoryStat:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        amount:
+          type: number
+          format: double
+
+    TransactionPage:
+      type: object
+      required: [page, size, total, records]
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+
+    TemplatePage:
+      type: object
+      required: [page, size, total, records]
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateItem'
+
+    ExportPayload:
+      type: object
+      required: [exportedAt, categories, transactions]
+      properties:
+        exportedAt:
+          type: string
+          format: date-time
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateItem'
+
+    ImportRequest:
+      type: object
+      required: [payload]
+      properties:
+        dryRun:
+          type: boolean
+          default: false
+          description: true=仅预检不落库
+        conflictStrategy:
+          type: string
+          enum: [skip, overwrite, merge]
+          default: skip
+        payload:
+          $ref: '#/components/schemas/ExportPayload'
+
+    ImportIssue:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [category, transaction, template, unknown]
+        refId:
+          type: string
+        reason:
+          type: string
+
+    ImportResult:
+      type: object
+      required: [dryRun, created, updated, skipped, issues]
+      properties:
+        dryRun:
+          type: boolean
+        created:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+
+    RestoreRequest:
+      type: object
+      required: [source]
+      properties:
+        source:
+          type: string
+          enum: [upload, backup]
+        conflictStrategy:
+          type: string
+          enum: [skip, overwrite, merge]
+          default: skip
+        payload:
+          $ref: '#/components/schemas/ExportPayload'
+          description: 当 source=upload 时必填
+
+    RestoreTaskCreated:
+      type: object
+      required: [taskId]
+      properties:
+        taskId:
+          type: string
+
+    RestoreTaskStatus:
+      type: object
+      required: [taskId, status, progress]
+      properties:
+        taskId:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, success, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        message:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
