@@ -15,6 +15,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 data class AppUiState(
     val loading: Boolean = false,
@@ -31,7 +32,12 @@ data class AppUiState(
     val categoriesIncome: List<Category> = emptyList(),
     val transactions: List<TransactionItem> = emptyList(),
     val templates: List<TemplateItem> = emptyList(),
-    val summary: StatsSummary? = null
+    val summary: StatsSummary? = null,
+    val loginPhone: String = "",
+    /** 我的页总览统计（首次通过接口全量加载，后续本地缓存增量维护） */
+    val overviewTotalDays: Int? = null,
+    val overviewTotalCount: Int? = null,
+    val overviewLoading: Boolean = false
 )
 
 class AppViewModel(
@@ -49,6 +55,7 @@ class AppViewModel(
     /** 定投页：近年投资明细缓存 */
     private val _autoInvest = MutableStateFlow(AutoInvestState())
     val autoInvest: StateFlow<AutoInvestState> = _autoInvest.asStateFlow()
+    private var overviewTransactionsCache: List<TransactionItem>? = null
 
     fun setChartBillType(type: Int) {
         _chartStats.value = _chartStats.value.copy(billType = type)
@@ -184,16 +191,49 @@ class AppViewModel(
         _autoInvest.value = AutoInvestState()
     }
 
+    fun ensureOverviewStatsLoaded() = viewModelScope.launch {
+        if (!_uiState.value.loggedIn) return@launch
+        if (overviewTransactionsCache != null) return@launch
+        try {
+            _uiState.value = _uiState.value.copy(overviewLoading = true)
+            val all = fetchAllTransactionsForOverview()
+            overviewTransactionsCache = all
+            val (days, count) = computeOverviewStats(all)
+            _uiState.value = _uiState.value.copy(
+                overviewTotalDays = days,
+                overviewTotalCount = count,
+                overviewLoading = false
+            )
+        } catch (_: Exception) {
+            _uiState.value = _uiState.value.copy(overviewLoading = false)
+        }
+    }
+
     init {
         viewModelScope.launch {
             preferencesStore.themeMode.collect { mode ->
                 _uiState.value = _uiState.value.copy(themeMode = mode)
             }
         }
-        val loggedIn = !sessionStore.getAccessToken().isNullOrBlank()
-        _uiState.value = _uiState.value.copy(loggedIn = loggedIn)
-        if (loggedIn) {
+        val hasAccess = !sessionStore.getAccessToken().isNullOrBlank()
+        val hasRefresh = !sessionStore.getRefreshToken().isNullOrBlank()
+        _uiState.value = _uiState.value.copy(
+            loggedIn = hasAccess || hasRefresh,
+            loginPhone = sessionStore.getLoginPhone().orEmpty()
+        )
+        if (hasAccess) {
             loadHomeData()
+        } else if (hasRefresh) {
+            viewModelScope.launch {
+                try {
+                    refreshAccessTokenOrThrow()
+                    _uiState.value = _uiState.value.copy(loggedIn = true)
+                    loadHomeData()
+                } catch (_: Exception) {
+                    sessionStore.clear()
+                    _uiState.value = _uiState.value.copy(loggedIn = false)
+                }
+            }
         }
     }
 
@@ -225,8 +265,10 @@ class AppViewModel(
             val res = api.login(LoginRequest(username, password))
             val token = requireNotNull(res.data) { "登录响应为空" }
             sessionStore.saveTokens(token.accessToken, token.refreshToken)
+            sessionStore.saveLoginPhone(username)
             _uiState.value = _uiState.value.copy(loggedIn = true)
             loadHomeData()
+            _uiState.value = _uiState.value.copy(loginPhone = username)
             "登录成功"
         }
     }
@@ -236,6 +278,7 @@ class AppViewModel(
         val theme = _uiState.value.themeMode
         clearChartStats()
         clearAutoInvestState()
+        overviewTransactionsCache = null
         _uiState.value = AppUiState(loggedIn = false, message = "已退出登录", themeMode = theme)
     }
 
@@ -377,11 +420,13 @@ class AppViewModel(
             val merged = _uiState.value.transactions.filterNot { it.id == transactionId }
             removeTransactionFromChartCaches(transactionId)
             removeTransactionFromAutoInvestCaches(transactionId)
+            overviewTransactionsCache = overviewTransactionsCache?.filterNot { it.id == transactionId }
             _uiState.value = _uiState.value.copy(
                 transactions = merged,
                 summary = recomputeSummary(merged),
                 message = "明细已删除"
             )
+            syncOverviewFromCacheIfPresent()
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(message = "请求失败: ${formatApiError(e)}")
         }
@@ -432,6 +477,7 @@ class AppViewModel(
             )
             upsertTransactionIntoChartCaches(localTx)
             upsertTransactionIntoAutoInvestCaches(localTx)
+            overviewTransactionsCache = overviewTransactionsCache?.let { (listOf(localTx) + it).distinctBy { tx -> tx.id } }
             if (YearMonth.from(occurredAt) == current.selectedYearMonth) {
                 val merged = listOf(localTx) + current.transactions
                 _uiState.value = _uiState.value.copy(
@@ -439,6 +485,7 @@ class AppViewModel(
                     summary = recomputeSummary(merged)
                 )
             }
+            syncOverviewFromCacheIfPresent()
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 loading = false,
@@ -499,10 +546,12 @@ class AppViewModel(
             removeTransactionFromAutoInvestCaches(transactionId)
             upsertTransactionIntoChartCaches(edited)
             upsertTransactionIntoAutoInvestCaches(edited)
+            overviewTransactionsCache = overviewTransactionsCache?.map { if (it.id == transactionId) edited else it }
             _uiState.value = _uiState.value.copy(
                 transactions = merged,
                 summary = recomputeSummary(merged)
             )
+            syncOverviewFromCacheIfPresent()
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 loading = false,
@@ -568,6 +617,48 @@ class AppViewModel(
         )
     }
 
+    private suspend fun fetchAllTransactionsForOverview(): List<TransactionItem> {
+        return callWithTokenRefreshOnce {
+            val auth = authHeader()
+            val from = LocalDate.of(2000, 1, 1).atStartOfDay()
+            val to = LocalDate.now().plusDays(1).atStartOfDay()
+            var page = 1L
+            val size = 500L
+            val all = mutableListOf<TransactionItem>()
+            while (true) {
+                val res = api.getTransactions(
+                    auth,
+                    formatDateTime(from),
+                    formatDateTime(to),
+                    null,
+                    page,
+                    size
+                )
+                ensureOk(res)
+                val data = res.data ?: break
+                val records = data.records.map { it.withParsedOccurredAt() }
+                all += records
+                if (records.isEmpty() || all.size >= data.total) break
+                page++
+            }
+            all
+        }
+    }
+
+    private fun computeOverviewStats(list: List<TransactionItem>): Pair<Int, Int> {
+        val days = list.mapNotNull { it.parsedOccurredAt?.toLocalDate() }.distinct().size
+        return days to list.size
+    }
+
+    private fun syncOverviewFromCacheIfPresent() {
+        val cache = overviewTransactionsCache ?: return
+        val (days, count) = computeOverviewStats(cache)
+        _uiState.value = _uiState.value.copy(
+            overviewTotalDays = days,
+            overviewTotalCount = count
+        )
+    }
+
     private fun ensureOk(res: ApiResponse<*>) {
         if (res.code != 0) error(res.message.ifBlank { "服务端返回异常" })
     }
@@ -578,8 +669,13 @@ class AppViewModel(
             return block()
         } catch (e: HttpException) {
             if (e.code() == 401 || e.code() == 403) {
-                refreshAccessTokenOrThrow()
-                return block()
+                try {
+                    refreshAccessTokenOrThrow()
+                    return block()
+                } catch (_: Exception) {
+                    forceLogoutOnAuthExpired()
+                    throw IllegalStateException("登录已过期，请重新登录")
+                }
             }
             throw e
         }
@@ -612,6 +708,23 @@ class AppViewModel(
         }
     }
 
+    fun createTemplateFromTransaction(tx: TransactionItem) = viewModelScope.launch {
+        runAction {
+            api.createTemplate(
+                authHeader(),
+                TemplateUpsertRequest(
+                    type = tx.type,
+                    amount = abs(tx.amount),
+                    categoryId = tx.categoryId,
+                    note = tx.note,
+                    sort = 0
+                )
+            )
+            loadHomeData()
+            "已添加到模板"
+        }
+    }
+
     private suspend fun runAction(block: suspend () -> String) {
         try {
             _uiState.value = _uiState.value.copy(loading = true, message = "")
@@ -623,8 +736,25 @@ class AppViewModel(
     }
 
     private fun authHeader(): String {
-        val token = sessionStore.getAccessToken() ?: error("请先登录")
+        val token = sessionStore.getAccessToken()
+        if (token.isNullOrBlank()) {
+            forceLogoutOnAuthExpired()
+            error("登录已过期，请重新登录")
+        }
         return "Bearer $token"
+    }
+
+    private fun forceLogoutOnAuthExpired() {
+        val theme = _uiState.value.themeMode
+        sessionStore.clear()
+        clearChartStats()
+        clearAutoInvestState()
+        overviewTransactionsCache = null
+        _uiState.value = AppUiState(
+            loggedIn = false,
+            message = "登录已过期，请重新登录",
+            themeMode = theme
+        )
     }
 
     private fun formatDateTime(v: LocalDateTime): String {

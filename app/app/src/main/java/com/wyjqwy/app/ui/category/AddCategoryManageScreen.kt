@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +46,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.SubPageTopBar
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 
 sealed class CategoryManageSheetRequest {
     data class Add(val isExpense: Boolean) : CategoryManageSheetRequest()
@@ -68,6 +71,7 @@ fun AddCategoryManageDialog(
     prefsStore: com.wyjqwy.app.data.PreferencesStore,
     onDismiss: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val isEdit = request is CategoryManageSheetRequest.Edit
     val initialExpense = when (request) {
         is CategoryManageSheetRequest.Add -> request.isExpense
@@ -93,6 +97,7 @@ fun AddCategoryManageDialog(
             }
         )
     }
+    var localError by remember(request) { mutableStateOf("") }
 
     LaunchedEffect(isExpense) {
         if (!isEdit) {
@@ -115,6 +120,9 @@ fun AddCategoryManageDialog(
     }
 
     val sections = if (isExpense) expenseManageIconSections else incomeManageIconSections
+    val systemNames = remember(isExpense) {
+        (if (isExpense) expenseCategoryPresets else incomeCategoryPresets).map { it.name }.toSet()
+    }
     val canSubmit = name.isNotBlank() && name.length <= 4 && !state.loading
 
     Dialog(
@@ -140,6 +148,11 @@ fun AddCategoryManageDialog(
                     onDone = {
                         val n = name.trim()
                         if (n.isNotEmpty() && n.length <= 4) {
+                            if (!isEdit && n in systemNames) {
+                                localError = "系统默认分类不可自定义，请换个名称"
+                                return@AddCategoryTopBar
+                            }
+                            localError = ""
                             val type = if (isExpense) 1 else 2
                             when (request) {
                                 is CategoryManageSheetRequest.Add ->
@@ -164,7 +177,7 @@ fun AddCategoryManageDialog(
                         .size(88.dp)
                         .align(Alignment.CenterHorizontally)
                         .clip(CircleShape)
-                        .background(BookColors.Main),
+                        .background(primaryColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -218,6 +231,15 @@ fun AddCategoryManageDialog(
                     )
                     Spacer(Modifier.height(8.dp))
                 }
+                if (localError.isNotBlank()) {
+                    Text(
+                        text = localError,
+                        color = BookColors.RedExpense,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
 
                 LazyColumn(
                     modifier = Modifier
@@ -257,7 +279,7 @@ fun AddCategoryManageDialog(
                                             .clip(CircleShape)
                                             .background(
                                                 if (slot.iconKey == selectedSlot.iconKey) {
-                                                    BookColors.Main
+                                                    primaryColor
                                                 } else {
                                                     BookColors.CategoryGridCircle
                                                 }
@@ -270,7 +292,7 @@ fun AddCategoryManageDialog(
                                         Icon(
                                             imageVector = slot.icon,
                                             contentDescription = slot.iconKey,
-                                            tint = BookColors.CategoryGridIcon,
+                                            tint = if (slot.iconKey == selectedSlot.iconKey) BookColors.White else BookColors.CategoryGridIcon,
                                             modifier = Modifier.size(26.dp)
                                         )
                                     }
@@ -301,62 +323,64 @@ private fun AddCategoryTopBar(
     onDone: () -> Unit,
     canSubmit: Boolean
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TextButton(onClick = onCancel) {
-            Text("取消", color = BookColors.TextGray, fontSize = 16.sp)
-        }
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "支出",
-                fontSize = 17.sp,
-                fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Normal,
-                color = when {
-                    !typeSwitchEnabled && isExpense -> BookColors.TextBlack
-                    !typeSwitchEnabled -> BookColors.TextGray.copy(alpha = 0.45f)
-                    isExpense -> BookColors.TextBlack
-                    else -> BookColors.TextGray
-                },
-                modifier = Modifier
-                    .clickable(enabled = typeSwitchEnabled, onClick = onExpenseClick)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            )
-            Text(
-                text = "收入",
-                fontSize = 17.sp,
-                fontWeight = if (!isExpense) FontWeight.Bold else FontWeight.Normal,
-                color = when {
-                    !typeSwitchEnabled && !isExpense -> BookColors.TextBlack
-                    !typeSwitchEnabled -> BookColors.TextGray.copy(alpha = 0.45f)
-                    !isExpense -> BookColors.TextBlack
-                    else -> BookColors.TextGray
-                },
-                modifier = Modifier
-                    .clickable(enabled = typeSwitchEnabled, onClick = onIncomeClick)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            )
-        }
-        Surface(
-            onClick = { if (canSubmit) onDone() },
-            enabled = canSubmit,
-            shape = RoundedCornerShape(22.dp),
-            color = if (canSubmit) BookColors.Main else BookColors.Line
-        ) {
-            Text(
-                text = "完成",
-                color = if (canSubmit) BookColors.White else BookColors.TextGray,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
-            )
-        }
+        SubPageTopBar(
+            title = "添加分类",
+            onBack = onCancel,
+            trailingContent = {
+                TextButton(
+                    onClick = { if (canSubmit) onDone() },
+                    enabled = canSubmit
+                ) {
+                    Text(
+                        text = "完成",
+                        color = if (canSubmit) primaryColor else BookColors.TextGray,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+        )
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "支出",
+            fontSize = 17.sp,
+            fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Normal,
+            color = when {
+                !typeSwitchEnabled && isExpense -> BookColors.TextBlack
+                !typeSwitchEnabled -> BookColors.TextGray.copy(alpha = 0.45f)
+                isExpense -> BookColors.TextBlack
+                else -> BookColors.TextGray
+            },
+            modifier = Modifier
+                .clickable(enabled = typeSwitchEnabled, onClick = onExpenseClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        )
+        Text(
+            text = "收入",
+            fontSize = 17.sp,
+            fontWeight = if (!isExpense) FontWeight.Bold else FontWeight.Normal,
+            color = when {
+                !typeSwitchEnabled && !isExpense -> BookColors.TextBlack
+                !typeSwitchEnabled -> BookColors.TextGray.copy(alpha = 0.45f)
+                !isExpense -> BookColors.TextBlack
+                else -> BookColors.TextGray
+            },
+            modifier = Modifier
+                .clickable(enabled = typeSwitchEnabled, onClick = onIncomeClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        )
     }
 }

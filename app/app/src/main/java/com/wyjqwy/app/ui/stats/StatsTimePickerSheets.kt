@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDate
 import java.time.temporal.WeekFields
 
@@ -42,11 +43,6 @@ fun YearOnlyPickerSheet(
     // 生成近10年的列表，反转顺序让最近的年份在最上面
     val yearRange = remember(currentYear) { (currentYear - 4..currentYear).toList().reversed() }
     val yearsStr = remember(yearRange) { yearRange.map { "${it}年" } }
-
-    // 计算初始选中的下标
-    val initialIndex = remember(initialYear, yearRange) {
-        yearRange.indexOf(initialYear).coerceAtLeast(0)
-    }
 
     // 记录最终选中的年份
     var finalYear by remember { mutableIntStateOf(initialYear) }
@@ -66,9 +62,8 @@ fun YearOnlyPickerSheet(
             WheelTextPicker(
                 texts = yearsStr,
                 rowCount = 5, // 👈 修复点：明确告诉组件显示 5 行
-                startIndex = initialIndex,
+                startIndex = yearRange.indexOf(finalYear).coerceAtLeast(0),
                 onScrollFinished = { snappedIndex ->
-                    // 滚动停止时更新最终年份
                     finalYear = yearRange[snappedIndex]
                     return@WheelTextPicker null
                 }
@@ -120,7 +115,7 @@ fun YearMonthPickerSheet(
                 WheelTextPicker(
                     texts = monthsStr,
                     rowCount = 5, // 👈 修复点：明确告诉组件显示 5 行
-                    startIndex = (initialMonth - 1).coerceIn(0, 11),
+                    startIndex = (finalMonth - 1).coerceIn(0, 11),
                     onScrollFinished = { snappedIndex ->
                         finalMonth = snappedIndex + 1
                         return@WheelTextPicker null
@@ -176,7 +171,7 @@ fun YearWeekPickerSheet(
                 WheelTextPicker(
                     texts = weeksStr,
                     rowCount = 5, // 👈 修复点：明确告诉组件显示 5 行
-                    startIndex = (initialWeek - 1).coerceIn(0, maxWeek - 1),
+                    startIndex = (finalWeek - 1).coerceIn(0, maxWeek - 1),
                     onScrollFinished = { snappedIndex ->
                         finalWeek = snappedIndex + 1
                         return@WheelTextPicker null
@@ -196,6 +191,7 @@ private fun StatsPickerSheetFrame(
     onConfirm: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -208,9 +204,9 @@ private fun StatsPickerSheetFrame(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) { Text("取消", color = BookColors.BrandTeal) }
+                TextButton(onClick = onDismiss) { Text("取消", color = primaryColor) }
                 Text(title, color = BookColors.TextBlack, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onConfirm) { Text("确定", color = BookColors.BrandTeal) }
+                TextButton(onClick = onConfirm) { Text("确定", color = primaryColor) }
             }
             HorizontalDivider(color = BookColors.Line)
             Spacer(Modifier.height(8.dp))

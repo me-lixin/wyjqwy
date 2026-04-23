@@ -41,11 +41,7 @@ class MainActivity : ComponentActivity() {
             val state by vm.uiState.collectAsState()
             BookkeepingTheme(themeMode = state.themeMode) {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
-                    if (state.loggedIn) {
-                        MainShell(state, vm)
-                    } else {
-                        BookkeepingLoginScreen(state, vm)
-                    }
+                    MainShell(state, vm)
                 }
             }
         }

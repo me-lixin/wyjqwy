@@ -1,5 +1,25 @@
 R_DEF: Internal format may change without notice
 local
+color forest_end
+color forest_start
+color lavender_end
+color lavender_start
+color ocean_end
+color ocean_start
+color rose_end
+color rose_start
+color slate_end
+color slate_start
+color sunset_end
+color sunset_start
+color texture_primary_default
+color texture_secondary_default
+drawable bg_texture_gradient
+drawable bg_texture_pattern
+drawable bg_texture_pattern_overlay
 string app_display_name
+string app_logo_glyph
 string app_name
 style Theme.Wyjqwy
+style WidgetWyjqwyCardPrint
+style WidgetWyjqwyCardPrintSoft

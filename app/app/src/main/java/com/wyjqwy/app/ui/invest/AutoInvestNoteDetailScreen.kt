@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -46,6 +47,7 @@ fun AutoInvestNoteDetailScreen(
     onBack: () -> Unit,
     onEditTransaction: (TransactionItem) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val state by vm.autoInvest.collectAsState()
     val all = remember(state.yearTransactions) {
         state.yearTransactions.values.flatten()
@@ -67,7 +69,7 @@ fun AutoInvestNoteDetailScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(BookColors.BrandTeal)
+                .background(primaryColor)
                 .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -78,7 +80,7 @@ fun AutoInvestNoteDetailScreen(
             Text(
                 text = noteDisplayName,
                 color = BookColors.TextBlack,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
         }

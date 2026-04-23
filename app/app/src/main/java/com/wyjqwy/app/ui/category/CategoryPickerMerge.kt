@@ -33,7 +33,8 @@ fun mergedPickerEntries(
             iconKey = key,
             icon = categoryIconForIconKey(key),
             serverId = api?.id ?: 0L,
-            isUserCustom = api?.isUserCategory == true
+            // 系统默认分类固定，不作为“可编辑/可删除”的自定义项
+            isUserCustom = false
         )
     }
 

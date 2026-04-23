@@ -58,8 +58,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
+import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -97,6 +99,7 @@ fun StatsDashboardScreen(
     rankListState: LazyListState,
     onOpenCategoryStats: (TransactionItem) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val chart by vm.chartStats.collectAsState()
     val weekFields = WeekFields.ISO
     val period = StatsPeriod.entries[chart.periodOrdinal.coerceIn(0, 2)]
@@ -207,7 +210,7 @@ fun StatsDashboardScreen(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(BookColors.BrandTeal)
+                .background(primaryColor)
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
@@ -233,9 +236,11 @@ fun StatsDashboardScreen(
                         onClick = { vm.setChartBillType(if (t == BillType.INCOME) 2 else 1) },
                         label = { Text(t.label) },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (billType == t) BookColors.TextBlack else BookColors.BrandTeal,
+                            containerColor = if (billType == t) BookColors.TextBlack else primaryColor,
                             labelColor = if (billType == t) BookColors.White else BookColors.TextBlack
-                        )
+                        ),
+                        // 👇 新增这一行配置，强制将边框设为黑色和 1.dp 宽度
+                        border = BorderStroke(1.dp, BookColors.TextBlack)
                     )
                 }
             }
@@ -248,7 +253,7 @@ fun StatsDashboardScreen(
                             .clip(RoundedCornerShape(0.dp))
                             .clickable { vm.setChartPeriodOrdinal(p.ordinal) },
                         border = BorderStroke(1.dp, BookColors.TextBlack),
-                        color = if (period == p) BookColors.TextBlack else BookColors.BrandTeal
+                        color = if (period == p) BookColors.TextBlack else primaryColor
                     ) {
                         Box(
                             modifier = Modifier
@@ -269,7 +274,7 @@ fun StatsDashboardScreen(
 
         if (showBlocking) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BookColors.BrandTeal)
+                CircularProgressIndicator(color = primaryColor)
             }
             return@Column
         }
@@ -345,7 +350,7 @@ fun StatsDashboardScreen(
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CategoryDot(item.categoryName)
+                            CategoryDot(item.categoryName, item.seedTx.categoryIcon)
                             Spacer(Modifier.size(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(
@@ -370,7 +375,7 @@ fun StatsDashboardScreen(
                                 LinearProgressIndicator(
                                     progress = { pct },
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = BookColors.BrandTeal,
+                                    color = primaryColor,
                                     trackColor = BookColors.Line
                                 )
                             }
@@ -384,9 +389,10 @@ fun StatsDashboardScreen(
 
 @Composable
 private fun TimeRangeChip(text: String, onClick: () -> Unit) {
+    val primaryColor = rememberThemePrimaryColor()
     Surface(
         modifier = Modifier.clip(RoundedCornerShape(5.dp)).clickable(onClick = onClick),
-        color = BookColors.BrandTeal
+        color = primaryColor
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -399,16 +405,17 @@ private fun TimeRangeChip(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun CategoryDot(categoryName: String) {
-    val icon = categoryIconForName(categoryName)
+private fun CategoryDot(categoryName: String, iconKey: String?) {
+    val primaryColor = rememberThemePrimaryColor()
+    val icon = categoryIconForIconKey(iconKey).takeIf { !iconKey.isNullOrBlank() } ?: categoryIconForName(categoryName)
     Box(
         Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(BookColors.BrandTealIconBg),
+            .background(primaryColor.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = BookColors.BrandTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = primaryColor, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -424,6 +431,7 @@ private fun TrendLineChart(
     average: Double,
     modifier: Modifier = Modifier
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     if (data.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text("暂无趋势数据", color = BookColors.TextGray, fontSize = 12.sp)
@@ -496,7 +504,7 @@ private fun TrendLineChart(
                 }
                 drawPath(
                     path = path,
-                    color = BookColors.BrandTeal,
+                    color = primaryColor,
                     style = Stroke(width = 2.dp.toPx())
                 )
                 val maxIdx = data.indices.maxByOrNull { data[it].amount } ?: 0
@@ -508,7 +516,7 @@ private fun TrendLineChart(
                             isSelected -> BookColors.TextBlack
                             index == maxIdx -> androidx.compose.ui.graphics.Color(0xFFD32F2F)
                             index == minIdx -> androidx.compose.ui.graphics.Color(0xFF1976D2)
-                            else -> BookColors.BrandTeal
+                            else -> primaryColor
                         },
                         radius = if (isSelected) 4.5.dp.toPx() else 3.dp.toPx(),
                         center = p

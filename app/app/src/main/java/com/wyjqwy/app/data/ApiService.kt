@@ -85,6 +85,12 @@ interface ApiService {
         @Query("size") size: Long = 20
     ): ApiResponse<PageResponse<TemplateItem>>
 
+    @POST("/api/templates")
+    suspend fun createTemplate(
+        @Header("Authorization") auth: String,
+        @Body body: TemplateUpsertRequest
+    ): ApiResponse<Void>
+
     @POST("/api/templates/{id}/apply")
     suspend fun applyTemplate(
         @Header("Authorization") auth: String,

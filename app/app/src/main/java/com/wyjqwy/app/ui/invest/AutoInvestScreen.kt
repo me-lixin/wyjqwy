@@ -38,11 +38,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -74,6 +76,7 @@ fun AutoInvestScreen(
     listState: LazyListState,
     onOpenNoteDetails: (noteKey: String, noteDisplayName: String) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val state by vm.autoInvest.collectAsState()
     val currentYear = LocalDate.now().year
     val yearsNeeded = remember(currentYear) { (currentYear - 9..currentYear).toSet() }
@@ -126,7 +129,7 @@ fun AutoInvestScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(BookColors.BrandTeal)
+                .background(primaryColor)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -141,7 +144,7 @@ fun AutoInvestScreen(
 
         if (showBlocking) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BookColors.BrandTeal)
+                CircularProgressIndicator(color = primaryColor)
             }
             return@Column
         }
@@ -168,11 +171,27 @@ fun AutoInvestScreen(
                     shadowElevation = 6.dp
                 ) {
                     Column(Modifier.padding(16.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            InvestStatCell("总资产", "¥${formatAmount(totalAmount)}", Modifier.weight(1f))
-                            InvestStatCell("总次数", "${investTx.size}次", Modifier.weight(1f))
-                            InvestStatCell("总时长", "${totalDays}天", Modifier.weight(1f))
-                        }
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            // 替代原本的 3 个 InvestStatCell 调用
+                            Column(Modifier.fillMaxWidth()) {
+                                // 第一行：数值行
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("¥${formatAmount(totalAmount)}", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("${investTx.size}次", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("${totalDays}天", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                // 第二行：标签行
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("总资产", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = BookColors.TextGray, fontSize = 12.sp)
+                                    Text("总次数", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = BookColors.TextGray, fontSize = 12.sp)
+                                    Text("总时长", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = BookColors.TextGray, fontSize = 12.sp)
+                                }
+                            }                        }
                         Spacer(Modifier.height(18.dp))
                         Row(
                             Modifier.fillMaxWidth(),
@@ -245,10 +264,27 @@ fun AutoInvestScreen(
 
 @Composable
 private fun InvestStatCell(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = BookColors.TextBlack, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text(
+            value,
+            color = BookColors.TextBlack,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 20.sp,
+            maxLines = 1
+        )
         Spacer(Modifier.height(4.dp))
-        Text(label, color = BookColors.TextGray, fontSize = 12.sp)
+        Text(
+            label,
+            color = BookColors.TextGray,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
+            maxLines = 1
+        )
     }
 }
 

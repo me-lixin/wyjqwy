@@ -2,7 +2,6 @@ package com.wyjqwy.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -42,11 +41,9 @@ fun BookkeepingTheme(
             error = BookColors.RedExpense
         )
     }
-    val typography = Typography()
-
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = typography,
+        typography = AppTypography,
         content = content
     )
 }

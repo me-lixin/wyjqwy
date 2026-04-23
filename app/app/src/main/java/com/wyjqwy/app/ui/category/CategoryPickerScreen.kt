@@ -94,6 +94,8 @@ import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.SubPageTopBar
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.ReorderableItem
@@ -126,6 +128,7 @@ fun CategoryPickerScreen(
     initialTransaction: TransactionItem? = null,
     onBack: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     var tab by remember(initialTransaction?.id) {
         mutableIntStateOf(if (initialTransaction?.type == 2) 1 else 0)
     } // 0 支出 1 收入
@@ -250,17 +253,12 @@ fun CategoryPickerScreen(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(BookColors.BrandTeal)
+                .background(primaryColor)
                 .statusBarsPadding()
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                IconButton(onClick = {
+            SubPageTopBar(
+                title = if (initialTransaction == null) "添加记账" else "编辑记账",
+                onBack = {
                     if (selectedEntry != null) {
                         focusManager.clearFocus()
                         keyboardController?.hide()
@@ -272,48 +270,49 @@ fun CategoryPickerScreen(
                         editDeleteMode = false
                         onBack()
                     }
-                }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "返回",
-                        tint = BookColors.White
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    if (!editDeleteMode) {
+                },
+                modifier = Modifier.padding(horizontal = 4.dp),
+                trailingContent = {
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!editDeleteMode) {
+                            TextButton(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    showNumberPad = false
+                                    editDeleteMode = true
+                                }
+                            ) {
+                                Text(
+                                    "编辑",
+                                    color = BookColors.TextBlack,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                        }
                         TextButton(
                             onClick = {
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
-                                showNumberPad = false
-                                editDeleteMode = true
+                                if (editDeleteMode) {
+                                    editDeleteMode = false
+                                } else {
+                                    categorySheet = CategoryManageSheetRequest.Add(tab == 0)
+                                }
                             }
                         ) {
-                            Text("编辑", color = BookColors.White, fontSize = 15.sp)
+                            Text(
+                                text = if (editDeleteMode) "完成" else "新增",
+                                color = BookColors.TextBlack,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                         }
-                    }
-                    TextButton(
-                        onClick = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            if (editDeleteMode) {
-                                editDeleteMode = false
-                            } else {
-                                categorySheet = CategoryManageSheetRequest.Add(tab == 0)
-                            }
-                        }
-                    ) {
-                        Text(
-                            if (editDeleteMode) "完成" else "新增",
-                            color = BookColors.White,
-                            fontSize = 15.sp
-                        )
                     }
                 }
-            }
+            )
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -530,7 +529,7 @@ fun CategoryPickerScreen(
                                 .padding(horizontal = 12.dp),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = BookColors.BrandTeal
+                                focusedBorderColor = primaryColor
                             )
                         )
                         if (hotNoteSuggestions.isNotEmpty()) {
@@ -651,7 +650,7 @@ fun CategoryPickerScreen(
                 .background(Color.Black.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = BookColors.BrandTeal)
+            CircularProgressIndicator(color = primaryColor)
         }
     }
     SnackbarHost(
@@ -832,6 +831,7 @@ private fun NumberPad(
     onOperator: (String) -> Unit,
     onDone: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val rows = listOf(
         listOf("7", "8", "9", "DEL"),
         listOf("4", "5", "6", "+"),
@@ -848,7 +848,7 @@ private fun NumberPad(
                             .height(56.dp)
                             .background(
                                 when (key) {
-                                    "完成" -> BookColors.BrandTeal
+                                    "完成" -> primaryColor
                                     else -> Color(0xFFF7F7F7)
                                 }
                             )
@@ -897,7 +897,7 @@ private fun NumberPad(
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(22.dp),
-                    color = BookColors.BrandTeal,
+                    color = primaryColor,
                     strokeWidth = 2.dp
                 )
             }
@@ -949,6 +949,7 @@ private fun CategoryMigrateTargetDialog(
     onDismiss: () -> Unit,
     onMigrate: (Long) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     var selectedId by remember(session.deletingCategoryId) { mutableStateOf<Long?>(null) }
     val typeLabel = if (session.categoryType == 1) "支出" else "收入"
 
@@ -976,7 +977,7 @@ private fun CategoryMigrateTargetDialog(
                 if (migrating) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth(),
-                        color = BookColors.BrandTeal
+                        color = primaryColor
                     )
                     Spacer(Modifier.height(12.dp))
                 }
@@ -1028,7 +1029,7 @@ private fun CategoryMigrateTargetDialog(
                         },
                         enabled = selectedId != null && !migrating && targetCategories.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BookColors.BrandTeal,
+                            containerColor = primaryColor,
                             contentColor = BookColors.White,
                             disabledContainerColor = BookColors.TextGray.copy(alpha = 0.35f),
                             disabledContentColor = BookColors.White.copy(alpha = 0.8f)
@@ -1048,6 +1049,7 @@ private fun CategoryMigrateSelectableRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1059,7 +1061,7 @@ private fun CategoryMigrateSelectableRow(
         RadioButton(
             selected = selected,
             onClick = onClick,
-            colors = RadioButtonDefaults.colors(selectedColor = BookColors.BrandTeal)
+            colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
         )
         Spacer(Modifier.width(4.dp))
         Text(
@@ -1108,6 +1110,7 @@ private fun CategoryGridItem(
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val iconSize = 52.dp
     val sideBtnSize = 28.dp
     val sideGap = (-8).dp
@@ -1129,7 +1132,7 @@ private fun CategoryGridItem(
                         .size(iconSize)
                         .clip(CircleShape)
                         .background(
-                            if (selected) BookColors.BrandTeal.copy(alpha = 0.2f)
+                            if (selected) primaryColor
                             else BookColors.CategoryGridCircle
                         )
                         .then(
@@ -1144,7 +1147,7 @@ private fun CategoryGridItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = if (selected) BookColors.BrandTeal else BookColors.CategoryGridIcon,
+                        tint = if (selected) BookColors.White else BookColors.CategoryGridIcon,
                         modifier = Modifier.size(26.dp)
                     )
                 }
@@ -1174,14 +1177,14 @@ private fun CategoryGridItem(
                             .zIndex(1f)
                             .size(sideBtnSize)
                             .clip(CircleShape)
-                            .background(BookColors.BrandTeal.copy(alpha = 0.4f))
+                            .background(primaryColor.copy(alpha = 0.4f))
                             .clickable(onClick = onEditClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "编辑",
-                            tint = BookColors.White,
+                            tint = BookColors.TextBlack,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1191,7 +1194,7 @@ private fun CategoryGridItem(
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = if (selected) BookColors.BrandTeal else BookColors.TextBlack,
+                color = if (selected) primaryColor else BookColors.TextBlack,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 lineHeight = 14.sp,

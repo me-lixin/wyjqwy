@@ -1,7 +1,17 @@
 package com.wyjqwy.app.ui.detail
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,22 +22,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Search
@@ -41,12 +47,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,46 +58,56 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
 import com.wyjqwy.app.R
+import com.wyjqwy.app.data.TemplateItem
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
+import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import com.wyjqwy.app.ui.util.groupTransactionsByDay
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.Locale
-import kotlin.math.max
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.launch
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -102,10 +115,12 @@ fun DetailScreen(
     state: AppUiState,
     vm: AppViewModel,
     onOpenSearch: () -> Unit,
+    onOpenCalendar: () -> Unit,
     onOpenEditTransaction: (TransactionItem) -> Unit,
     onOpenCategoryStats: (TransactionItem) -> Unit,
     listState: LazyListState
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val density = LocalDensity.current
     val releaseThresholdPx = remember(density) { with(density) { 88.dp.toPx() } }
     val monthSwitchCooldownMs = 700L
@@ -172,7 +187,6 @@ fun DetailScreen(
 
     val monthScrollConnection = remember(listState, releaseThresholdPx) {
         object : NestedScrollConnection {
-
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source != NestedScrollSource.Drag || loadingNow.value) return Offset.Zero
 
@@ -181,13 +195,11 @@ fun DetailScreen(
                     bottomPullPx -= consumedY
                     return Offset(0f, consumedY)
                 }
-
                 if (topPullPx > 0f && available.y < 0f) {
                     val consumedY = (-available.y).coerceAtMost(topPullPx)
                     topPullPx -= consumedY
                     return Offset(0f, -consumedY)
                 }
-
                 return Offset.Zero
             }
 
@@ -211,7 +223,6 @@ fun DetailScreen(
                     topPullPeakPx = max(topPullPeakPx, topPullPx)
                     return Offset(0f, available.y)
                 }
-
                 return Offset.Zero
             }
 
@@ -230,9 +241,9 @@ fun DetailScreen(
     var showYearMonthPicker by remember { mutableStateOf(false) }
     var pendingDeleteTx by remember { mutableStateOf<TransactionItem?>(null) }
     val appTitle = stringResource(R.string.app_display_name)
+    val appLogo = stringResource(R.string.app_logo_glyph)
 
     if (showYearMonthPicker) {
-        // 🌟 替换为内置的新滚轮组件
         DetailYearMonthPickerSheet(
             initial = state.selectedYearMonth,
             onDismiss = { showYearMonthPicker = false },
@@ -242,6 +253,7 @@ fun DetailScreen(
             }
         )
     }
+    
     pendingDeleteTx?.let { tx ->
         AlertDialog(
             onDismissRequest = { pendingDeleteTx = null },
@@ -264,7 +276,7 @@ fun DetailScreen(
             Modifier
                 .fillMaxWidth()
                 .zIndex(1f)
-                .background(BookColors.BrandTeal)
+                .background(primaryColor)
         ) {
             Column(Modifier.statusBarsPadding()) {
                 Row(
@@ -278,7 +290,7 @@ fun DetailScreen(
                         Icon(
                             imageVector = if (state.amountVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                             contentDescription = "显示或隐藏金额",
-                            tint = BookColors.White
+                            tint = BookColors.TextBlack
                         )
                     }
                     Row(
@@ -294,7 +306,7 @@ fun DetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = appTitle.take(1),
+                                text = appLogo,
                                 color = BookColors.White,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 16.sp
@@ -308,11 +320,18 @@ fun DetailScreen(
                             fontWeight = FontWeight.Medium
                         )
                     }
+                    IconButton(onClick = onOpenCalendar) {
+                        Icon(
+                            Icons.Outlined.CalendarMonth,
+                            contentDescription = "日历",
+                            tint = BookColors.TextBlack
+                        )
+                    }
                     IconButton(onClick = onOpenSearch) {
                         Icon(
                             Icons.Outlined.Search,
                             contentDescription = "搜索",
-                            tint = BookColors.White
+                            tint = BookColors.TextBlack
                         )
                     }
                 }
@@ -365,33 +384,26 @@ fun DetailScreen(
                         valueColor = BookColors.TextBlack,
                         modifier = Modifier.weight(1f)
                     )
-                    SummaryStat(
-                        label = "结余",
-                        value = state.summary?.balance ?: 0.0,
-                        visible = state.amountVisible,
-                        valueColor = BookColors.TextBlack,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
+                TemplateQuickBar(
+                    templates = state.templates,
+                    onApplyTemplate = { vm.applyTemplate(it.id) }
+                )
             }
         }
 
-        if (state.loading) {
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = BookColors.BrandTeal)
-            }
-        } else {
+        // 🌟 修复二：将 AnimatedContent 和 Loading 剥离，避免相互销毁
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxSize()
+        ) {
             val groups = remember(state.transactions) { groupTransactionsByDay(state.transactions) }
+            
+            // 列表始终存在
             AnimatedContent(
                 targetState = state.selectedYearMonth,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
                     (fadeIn() + slideInVertically { it / 10 }) togetherWith
                             (fadeOut() + slideOutVertically { -it / 10 })
@@ -424,7 +436,7 @@ fun DetailScreen(
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = 24.dp),
-                                color = BookColors.BrandTeal,
+                                color = primaryColor,
                                 fontSize = 13.sp
                             )
                         }
@@ -434,7 +446,7 @@ fun DetailScreen(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .padding(bottom = 34.dp),
-                                color = BookColors.BrandTeal,
+                                color = primaryColor,
                                 fontSize = 13.sp
                             )
                         }
@@ -449,7 +461,7 @@ fun DetailScreen(
                             .background(MaterialTheme.colorScheme.surface),
                         state = listState
                     ) {
-                        if (groups.isEmpty()) {
+                        if (groups.isEmpty() && !state.loading) {
                             item {
                                 Box(
                                     Modifier
@@ -462,7 +474,8 @@ fun DetailScreen(
                             }
                         } else {
                             groups.forEach { (date, dayItems) ->
-                                val dayExpense = dayItems.filter { it.type == 1 }.sumOf { it.amount }
+                                val dayIncome = dayItems.filter { it.type == 2 }.sumOf { kotlin.math.abs(it.amount) }
+                                val dayExpense = dayItems.filter { it.type == 1 }.sumOf { kotlin.math.abs(it.amount) }
                                 item(key = "h_${date}") {
                                     Row(
                                         Modifier
@@ -478,37 +491,64 @@ fun DetailScreen(
                                             fontSize = 13.sp
                                         )
                                         Text(
-                                            text = if (state.amountVisible) "支出 ${String.format("%.2f", dayExpense)}" else "支出 ****",
+                                            text = if (state.amountVisible) {
+                                                "收入 ${String.format("%.2f", dayIncome)}  支出 ${String.format("%.2f", dayExpense)}"
+                                            } else {
+                                                "收入 **** 支出 ****"
+                                            },
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 13.sp
                                         )
                                     }
                                 }
+                                
                                 items(dayItems, key = { it.id }) { tx ->
-                                    val dismissState = rememberSwipeToDismissBoxState(
-                                        confirmValueChange = { value ->
-                                            if (value == SwipeToDismissBoxValue.StartToEnd || value == SwipeToDismissBoxValue.EndToStart) {
-                                                pendingDeleteTx = tx
-                                            }
-                                            false
-                                        }
-                                    )
-                                    SwipeToDismissBox(
-                                        state = dismissState,
-                                        backgroundContent = {
-                                            if (dismissState.progress > 0f) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .background(BookColors.RedExpense.copy(alpha = 0.12f))
-                                                        .padding(horizontal = 16.dp),
-                                                    contentAlignment = Alignment.CenterEnd
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.DeleteOutline,
-                                                        contentDescription = "删除明细",
-                                                        tint = BookColors.RedExpense
-                                                    )
+                                    // 🌟 修复一：使用自定义的 SwipeActionMenu 替换原本无法定格的 SwipeToDismissBox
+                                    SwipeActionMenu(
+                                        menuWidth = 116.dp, // 36*2 + 12间距 + 16*2 padding ≈ 116
+                                        backgroundContent = { closeMenu ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(MaterialTheme.colorScheme.surface) // 保持底部颜色自然
+                                                    .padding(horizontal = 16.dp),
+                                                contentAlignment = Alignment.CenterEnd
+                                            ) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(36.dp)
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFF2E7D32))
+                                                            .clickable {
+                                                                vm.createTemplateFromTransaction(tx)
+                                                                closeMenu()
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.Add,
+                                                            contentDescription = "添加模板",
+                                                            tint = BookColors.White
+                                                        )
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(36.dp)
+                                                            .clip(CircleShape)
+                                                            .background(BookColors.RedExpense)
+                                                            .clickable {
+                                                                pendingDeleteTx = tx
+                                                                closeMenu()
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.DeleteOutline,
+                                                            contentDescription = "删除明细",
+                                                            tint = BookColors.White
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -528,6 +568,151 @@ fun DetailScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // 🌟 独立处理 Loading：只在没有数据且 loading 时才显示大菊花，不阻碍列表渲染
+            if (state.loading && groups.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = primaryColor)
+                }
+            }
+        }
+    }
+}
+
+// 🌟 新增组件：自定义左滑菜单，支持滑动定格与右滑回弹
+@Composable
+private fun SwipeActionMenu(
+    modifier: Modifier = Modifier,
+    menuWidth: Dp = 116.dp,
+    backgroundContent: @Composable (closeMenu: () -> Unit) -> Unit,
+    content: @Composable () -> Unit
+) {
+    val density = LocalDensity.current
+    val maxSwipePx = remember(menuWidth, density) { with(density) { menuWidth.toPx() } }
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    val closeMenu: () -> Unit = {
+        scope.launch { offsetX.animateTo(0f) }
+    }
+
+    Box(modifier = modifier) {
+        // 底层菜单
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            backgroundContent(closeMenu)
+        }
+
+        // 顶层内容
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .pointerInput(maxSwipePx) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                // 划过一半宽度则自动展开定格，否则自动回弹收起
+                                if (offsetX.value < -maxSwipePx / 2) {
+                                    offsetX.animateTo(-maxSwipePx)
+                                } else {
+                                    offsetX.animateTo(0f)
+                                }
+                            }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            scope.launch {
+                                // 限制只能向左滑（负值），且不能超过菜单最大宽度
+                                val newOffset = (offsetX.value + dragAmount).coerceIn(-maxSwipePx, 0f)
+                                offsetX.snapTo(newOffset)
+                            }
+                        }
+                    )
+                }
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun TemplateQuickBar(
+    templates: List<TemplateItem>,
+    onApplyTemplate: (TemplateItem) -> Unit
+) {
+    val primaryColor = rememberThemePrimaryColor()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, bottom = 10.dp)
+            .shadow(elevation = 6.dp, shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp), clip = false)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        if (templates.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(62.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = "左滑明细可添加模板",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                items(templates.take(12), key = { it.id }) { item ->
+                    val icon = categoryIconForIconKey(item.categoryIcon).takeIf { !item.categoryIcon.isNullOrBlank() }
+                        ?: categoryIconForName(item.categoryName)
+                    val label = item.note?.takeIf { it.isNotBlank() } ?: item.categoryName
+                    val amountText = if (item.type == 2) "+${String.format("%.0f", item.amount ?: 0.0)}"
+                    else "-${String.format("%.0f", item.amount ?: 0.0)}"
+                    val amountColor = if (item.type == 2) androidx.compose.ui.graphics.Color(0xFF2E7D32) else BookColors.RedExpense
+                    Column(
+                        modifier = Modifier
+                            .clickable { onApplyTemplate(item) }
+                            .padding(horizontal = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(primaryColor.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = primaryColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Text(
+                            text = amountText,
+                            color = amountColor,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = label,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -572,7 +757,7 @@ private fun TransactionRow(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CategoryIcon(tx.categoryName, onClick = onCategoryIconClick)
+        CategoryIcon(tx.categoryName, tx.categoryIcon, onClick = onCategoryIconClick)
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -600,17 +785,18 @@ private fun TransactionRow(
 }
 
 @Composable
-private fun CategoryIcon(categoryName: String, onClick: () -> Unit) {
-    val icon = categoryIconForName(categoryName)
+private fun CategoryIcon(categoryName: String, iconKey: String?, onClick: () -> Unit) {
+    val primaryColor = rememberThemePrimaryColor()
+    val icon = categoryIconForIconKey(iconKey).takeIf { iconKey?.isNotBlank() == true } ?: categoryIconForName(categoryName)
     Box(
         Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(BookColors.BrandTealIconBg)
+            .background(primaryColor.copy(alpha = 0.18f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = BookColors.BrandTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = primaryColor, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -623,7 +809,6 @@ private fun formatOccurredAt(raw: String): String {
     }
 }
 
-// 🌟 为 DetailScreen 专属定制的滚轮时间选择器
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailYearMonthPickerSheet(
@@ -631,6 +816,7 @@ fun DetailYearMonthPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (YearMonth) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val currentYear = java.time.LocalDate.now().year
     val yearRange = remember(currentYear) { (currentYear - 4..currentYear).toList().reversed() }
     val yearsStr = remember(yearRange) { yearRange.map { "${it}年" } }
@@ -649,7 +835,7 @@ fun DetailYearMonthPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BookColors.White,
+        containerColor = BookColors.White, // 已修复之前的黑色背景问题
         dragHandle = null
     ) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 20.dp)) {
@@ -660,9 +846,9 @@ fun DetailYearMonthPickerSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) { Text("取消", color = BookColors.BrandTeal) }
+                TextButton(onClick = onDismiss) { Text("取消", color = primaryColor) }
                 Text("选择年月", color = BookColors.TextBlack, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { onConfirm(YearMonth.of(finalYear, finalMonth)) }) { Text("确定", color = BookColors.BrandTeal) }
+                TextButton(onClick = { onConfirm(YearMonth.of(finalYear, finalMonth)) }) { Text("确定", color = primaryColor) }
             }
             HorizontalDivider(color = BookColors.Line)
             Spacer(Modifier.height(8.dp))

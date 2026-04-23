@@ -47,8 +47,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
+import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -62,6 +64,7 @@ fun SearchScreen(
     onEditTransaction: (TransactionItem) -> Unit,
     onDeleteTransaction: (TransactionItem) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     var query by remember { mutableStateOf("") }
     var amountRangeFilter by remember { mutableStateOf(false) }
     var minAmountText by remember { mutableStateOf("") }
@@ -96,7 +99,7 @@ fun SearchScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().background(BookColors.BrandTeal)) {
+        Box(Modifier.fillMaxWidth().background(primaryColor)) {
             Row(
                 Modifier
                     .statusBarsPadding()
@@ -112,9 +115,9 @@ fun SearchScreen(
                 }
                 Text(
                     "搜索",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
                     color = BookColors.TextBlack,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp)
                 )
             }
@@ -136,7 +139,7 @@ fun SearchScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = BookColors.BrandTeal,
+                    focusedBorderColor = primaryColor,
                     unfocusedBorderColor = BookColors.Line,
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface
@@ -248,7 +251,7 @@ fun SearchScreen(
                                     .padding(horizontal = 4.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                SearchCategoryIcon(tx.categoryName)
+                                SearchCategoryIcon(tx.categoryName, tx.categoryIcon)
                                 Spacer(Modifier.size(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(
@@ -310,16 +313,17 @@ private fun filterTransactions(
 }
 
 @Composable
-private fun SearchCategoryIcon(categoryName: String) {
-    val icon = categoryIconForName(categoryName)
+private fun SearchCategoryIcon(categoryName: String, iconKey: String?) {
+    val primaryColor = rememberThemePrimaryColor()
+    val icon = categoryIconForIconKey(iconKey).takeIf { !iconKey.isNullOrBlank() } ?: categoryIconForName(categoryName)
     Box(
         Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(BookColors.BrandTealIconBg),
+            .background(primaryColor.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = BookColors.BrandTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = primaryColor, modifier = Modifier.size(20.dp))
     }
 }
 

@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.YearMonth
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +42,7 @@ fun YearMonthPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (YearMonth) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var year by remember { mutableIntStateOf(initial.year) }
     var month by remember { mutableIntStateOf(initial.monthValue) }
@@ -69,11 +71,11 @@ fun YearMonthPickerSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("取消", color = BookColors.BrandTeal, fontSize = 15.sp)
+                    Text("取消", color = primaryColor, fontSize = 15.sp)
                 }
                 Text("选择日期", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = BookColors.TextBlack)
                 TextButton(onClick = { onConfirm(YearMonth.of(year, month)); onDismiss() }) {
-                    Text("确定", color = BookColors.BrandTeal, fontSize = 15.sp)
+                    Text("确定", color = primaryColor, fontSize = 15.sp)
                 }
             }
             HorizontalDivider(color = BookColors.Line)

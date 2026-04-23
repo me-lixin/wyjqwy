@@ -1,94 +1,55 @@
 package com.wyjqwy.app.ui.category
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Business
-import androidx.compose.material.icons.outlined.CardGiftcard
-import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.ChildCare
-import androidx.compose.material.icons.outlined.DirectionsCar
-import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.Face
-import androidx.compose.material.icons.outlined.FamilyRestroom
-import androidx.compose.material.icons.outlined.FitnessCenter
-import androidx.compose.material.icons.outlined.FlashOn
-import androidx.compose.material.icons.outlined.Flight
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.LocalBar
-import androidx.compose.material.icons.outlined.LocalTaxi
-import androidx.compose.material.icons.outlined.MenuBook
-import androidx.compose.material.icons.outlined.Movie
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.Pets
-import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.material.icons.outlined.Redeem
-import androidx.compose.material.icons.outlined.Restaurant
-import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material.icons.outlined.School
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.outlined.LocalHospital
-import androidx.compose.material.icons.outlined.Smartphone
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.Train
-import androidx.compose.material.icons.outlined.TwoWheeler
-import androidx.compose.material.icons.outlined.Undo
-import androidx.compose.material.icons.outlined.Weekend
-import androidx.compose.material.icons.outlined.WorkOutline
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 data class CategoryPreset(
     val name: String,
-    /** 写入服务端 icon 字段，便于多端对齐 */
+    /** 写入服务端 `icon` 字段，英文 snake_case，对用户不可见 */
     val iconKey: String,
     val icon: ImageVector
 )
 
-/** 支出分类（1），顺序与常见记账 App 接近 */
+/** 系统默认支出分类（不可作为用户自定义分类进行编辑/删除） */
 val expenseCategoryPresets: List<CategoryPreset> = listOf(
-    CategoryPreset("餐饮", "restaurant", Icons.Outlined.Restaurant),
-    CategoryPreset("烟酒", "local_bar", Icons.Outlined.LocalBar),
-    CategoryPreset("购物", "shopping_cart", Icons.Outlined.ShoppingCart),
-    CategoryPreset("交通", "directions_car", Icons.Outlined.DirectionsCar),
-    CategoryPreset("住房", "home", Icons.Outlined.Home),
-    CategoryPreset("娱乐", "movie", Icons.Outlined.Movie),
-    CategoryPreset("居家", "weekend", Icons.Outlined.Weekend),
-    CategoryPreset("家庭", "family_restroom", Icons.Outlined.FamilyRestroom),
-    CategoryPreset("礼金", "card_giftcard", Icons.Outlined.CardGiftcard),
-    CategoryPreset("通讯", "phone", Icons.Outlined.Phone),
-    CategoryPreset("水电", "flash_on", Icons.Outlined.FlashOn),
-    CategoryPreset("医疗", "local_hospital", Icons.Outlined.LocalHospital),
-    CategoryPreset("教育", "school", Icons.Outlined.School),
-    CategoryPreset("宠物", "pets", Icons.Outlined.Pets),
-    CategoryPreset("运动", "fitness_center", Icons.Outlined.FitnessCenter),
-    CategoryPreset("数码", "smartphone", Icons.Outlined.Smartphone),
-    CategoryPreset("旅行", "flight", Icons.Outlined.Flight),
-    CategoryPreset("母婴", "child_care", Icons.Outlined.ChildCare),
-    CategoryPreset("美容", "face", Icons.Outlined.Face),
-    CategoryPreset("维修", "build", Icons.Outlined.Build),
-    CategoryPreset("社交", "people", Icons.Outlined.People),
-    CategoryPreset("学习", "menu_book", Icons.Outlined.MenuBook),
-    CategoryPreset("汽车", "directions_car_2", Icons.Outlined.DirectionsCar),
-    CategoryPreset("打车", "local_taxi", Icons.Outlined.LocalTaxi),
-    CategoryPreset("地铁", "train", Icons.Outlined.Train),
-    CategoryPreset("骑行", "two_wheeler", Icons.Outlined.TwoWheeler),
-    CategoryPreset("办公", "business", Icons.Outlined.Business),
-    CategoryPreset("其他", "category", Icons.Outlined.Category)
+    CategoryPreset("餐饮美食", "food_dining", Icons.Outlined.Restaurant),
+    CategoryPreset("交通出行", "transport", Icons.Outlined.DirectionsBus),
+    CategoryPreset("购物消费", "shopping", Icons.Outlined.ShoppingBag),
+    CategoryPreset("居家生活", "home_life", Icons.Outlined.Home),
+    CategoryPreset("水电煤气", "utilities", Icons.Outlined.OfflineBolt),
+    CategoryPreset("话费网费", "phone_bill", Icons.Outlined.PhoneIphone),
+    CategoryPreset("休闲娱乐", "entertainment", Icons.Outlined.SportsEsports),
+    CategoryPreset("零食饮品", "snacks_drinks", Icons.Outlined.Icecream),
+    CategoryPreset("护肤美妆", "beauty", Icons.Outlined.FaceRetouchingNatural),
+    CategoryPreset("服饰鞋包", "fashion", Icons.Outlined.Checkroom),
+    CategoryPreset("医疗健康", "medical", Icons.Outlined.MedicalServices),
+    CategoryPreset("学习教育", "education", Icons.Outlined.School),
+    CategoryPreset("人情往来", "social_relation", Icons.Outlined.Handshake),
+    CategoryPreset("宠物开销", "pets", Icons.Outlined.Pets),
+    CategoryPreset("运动健身", "sports", Icons.Outlined.FitnessCenter),
+    CategoryPreset("汽车开销", "auto", Icons.Outlined.DirectionsCar),
+    CategoryPreset("数码电器", "digital", Icons.Outlined.Computer),
+    CategoryPreset("房租房贷", "housing_loan", Icons.Outlined.Apartment),
+    CategoryPreset("金融保险", "finance_insurance", Icons.Outlined.Shield),
+    CategoryPreset("其他支出", "other_expense", Icons.Outlined.MoreHoriz)
 )
 
-/** 收入分类（2） */
+/** 系统默认收入分类（不可作为用户自定义分类进行编辑/删除） */
 val incomeCategoryPresets: List<CategoryPreset> = listOf(
-    CategoryPreset("工资", "account_balance_wallet", Icons.Outlined.AccountBalanceWallet),
-    CategoryPreset("奖金", "emoji_events", Icons.Outlined.EmojiEvents),
-    CategoryPreset("兼职", "work_outline", Icons.Outlined.WorkOutline),
-    CategoryPreset("理财", "savings", Icons.Outlined.Savings),
-    CategoryPreset("红包", "redeem", Icons.Outlined.Redeem),
-    CategoryPreset("退款", "undo", Icons.Outlined.Undo),
-    CategoryPreset("转账", "swap_horiz", Icons.Outlined.SwapHoriz),
-    CategoryPreset("其他", "category", Icons.Outlined.Category)
+    CategoryPreset("职业薪水", "salary", Icons.Outlined.WorkOutline),
+    CategoryPreset("兼职外快", "part_time", Icons.Outlined.Timer),
+    CategoryPreset("投资理财", "investment", Icons.Outlined.TrendingUp),
+    CategoryPreset("奖金福利", "bonus", Icons.Outlined.CardGiftcard),
+    CategoryPreset("收债回款", "debt_collection", Icons.Outlined.AssignmentReturn),
+    CategoryPreset("人情礼金", "gift_money", Icons.Outlined.VolunteerActivism),
+    CategoryPreset("二手闲置", "secondhand", Icons.Outlined.Recycling),
+    CategoryPreset("报销入账", "reimbursement", Icons.Outlined.ReceiptLong),
+    CategoryPreset("营业收入", "business_income", Icons.Outlined.Storefront),
+    CategoryPreset("其他收入", "other_income", Icons.Outlined.AddCircleOutline)
 )
 
-/** 明细列表等：按分类名解析图标（含预设 + 简单关键字） */
+/** 明细等：无 icon 字段时按分类名或关键字兜底 */
 fun categoryIconForName(name: String): ImageVector {
     expenseCategoryPresets.find { it.name == name }?.let { return it.icon }
     incomeCategoryPresets.find { it.name == name }?.let { return it.icon }

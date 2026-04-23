@@ -46,8 +46,10 @@ import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
+import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -70,6 +72,7 @@ fun CategoryStatsScreen(
     onBack: () -> Unit,
     onEditTransaction: (TransactionItem) -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     var sortMode by remember { mutableStateOf(CategorySortMode.TIME_DESC) }
     var pendingDeleteTx by remember { mutableStateOf<TransactionItem?>(null) }
 
@@ -118,14 +121,20 @@ fun CategoryStatsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(BookColors.BrandTeal)
+                .background(primaryColor)
                 .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = BookColors.White)
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = BookColors.TextBlack)
             }
+            Text(
+                text = "账单明细",
+                color = BookColors.TextBlack,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         // 统计卡片
@@ -174,7 +183,7 @@ fun CategoryStatsScreen(
                     onClick = { sortMode = mode },
                     label = { Text(mode.label) },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = if (sortMode == mode) BookColors.BrandTeal else BookColors.White,
+                        containerColor = if (sortMode == mode) primaryColor else BookColors.White,
                         labelColor = if (sortMode == mode) BookColors.White else BookColors.TextBlack
                     )
                 )
@@ -235,7 +244,7 @@ fun CategoryStatsScreen(
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CategoryIcon(tx.categoryName)
+                            CategoryIcon(tx.categoryName, tx.categoryIcon)
                             Spacer(Modifier.size(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -274,10 +283,11 @@ fun CategoryStatsScreen(
 
 @Composable
 private fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
+    val primaryColor = rememberThemePrimaryColor()
     Column(modifier = modifier, horizontalAlignment = Alignment.Start) {
         Text(
             text = value,
-            color = BookColors.BrandTeal,
+            color = primaryColor,
             fontSize = 22.sp, // 统一下调至 22sp，更符合阅读习惯
             fontWeight = FontWeight.SemiBold,
             lineHeight = 24.sp
@@ -293,16 +303,17 @@ private fun StatCell(value: String, label: String, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun CategoryIcon(categoryName: String) {
-    val icon = categoryIconForName(categoryName)
+private fun CategoryIcon(categoryName: String, iconKey: String?) {
+    val primaryColor = rememberThemePrimaryColor()
+    val icon = categoryIconForIconKey(iconKey).takeIf { !iconKey.isNullOrBlank() } ?: categoryIconForName(categoryName)
     Box(
         Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(BookColors.BrandTealIconBg),
+            .background(primaryColor.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = BookColors.BrandTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = primaryColor, modifier = Modifier.size(20.dp))
     }
 }
 

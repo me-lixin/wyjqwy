@@ -2,8 +2,10 @@
 
 package com.wyjqwy.app.ui.main
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +28,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Article
@@ -56,17 +60,28 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.viewinterop.AndroidView
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.theme.BookColors
+import com.wyjqwy.app.ui.detail.DetailCalendarScreen
 import com.wyjqwy.app.ui.detail.DetailScreen
 import com.wyjqwy.app.ui.search.SearchScreen
 import com.wyjqwy.app.ui.category.CategoryPickerScreen
@@ -74,13 +89,24 @@ import com.wyjqwy.app.ui.invest.AutoInvestNoteDetailScreen
 import com.wyjqwy.app.ui.invest.AutoInvestScreen
 import com.wyjqwy.app.ui.stats.CategoryStatsScreen
 import com.wyjqwy.app.ui.stats.StatsDashboardScreen
+import com.wyjqwy.app.ui.theme.DressUpScreen
+import com.wyjqwy.app.ui.theme.DecoratedThemeIcon
+import com.wyjqwy.app.ui.theme.ThemeBackgroundManager
+import com.wyjqwy.app.ui.theme.ThemeUtils
+import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDate
+import android.widget.FrameLayout
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun MainShell(state: AppUiState, vm: AppViewModel) {
     var tab by remember { mutableIntStateOf(0) }
     var showCategoryPicker by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
+    var showCalendar by remember { mutableStateOf(false) }
+    var showMineLogin by remember { mutableStateOf(false) }
+    var mineFeaturePlaceholderTitle by remember { mutableStateOf<String?>(null) }
+    var showDressUp by remember { mutableStateOf(false) }
     var editingTx by remember { mutableStateOf<TransactionItem?>(null) }
     var statsTx by remember { mutableStateOf<TransactionItem?>(null) }
     var investNoteKey by remember { mutableStateOf<String?>(null) }
@@ -89,6 +115,32 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
     val chartListState = rememberLazyListState()
     val autoInvestListState = rememberLazyListState()
     val autoInvestDetailListState = rememberLazyListState()
+    val hasSubPage = showSearch ||
+        showCalendar ||
+        showMineLogin ||
+        mineFeaturePlaceholderTitle != null ||
+        showDressUp ||
+        showCategoryPicker ||
+        statsTx != null ||
+        investNoteKey != null
+    BackHandler(enabled = hasSubPage) {
+        when {
+            showCategoryPicker -> {
+                showCategoryPicker = false
+                editingTx = null
+            }
+            statsTx != null -> statsTx = null
+            investNoteKey != null -> {
+                investNoteKey = null
+                investNoteName = null
+            }
+            showSearch -> showSearch = false
+            showCalendar -> showCalendar = false
+            showMineLogin -> showMineLogin = false
+            mineFeaturePlaceholderTitle != null -> mineFeaturePlaceholderTitle = null
+            showDressUp -> showDressUp = false
+        }
+    }
 
     if (showSearch) {
         SearchScreen(
@@ -104,6 +156,47 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                 vm.deleteTransaction(tx.id)
             }
         )
+        return
+    }
+    if (showCalendar) {
+        DetailCalendarScreen(
+            state = state,
+            onLoadMonth = { ym ->
+                if (ym != state.selectedYearMonth) vm.loadTransactionsForMonth(ym)
+            },
+            onBack = { showCalendar = false },
+            onEditTransaction = { tx ->
+                editingTx = tx
+                showCalendar = false
+                showCategoryPicker = true
+            },
+            onOpenCategoryStats = { tx ->
+                showCalendar = false
+                statsTx = tx
+            }
+        )
+        return
+    }
+    if (showMineLogin) {
+        LaunchedEffect(state.loggedIn) {
+            if (state.loggedIn) showMineLogin = false
+        }
+        BookkeepingLoginScreen(
+            state = state,
+            vm = vm,
+            onBack = { showMineLogin = false }
+        )
+        return
+    }
+    mineFeaturePlaceholderTitle?.let { title ->
+        MineFeaturePlaceholderScreen(
+            title = title,
+            onBack = { mineFeaturePlaceholderTitle = null }
+        )
+        return
+    }
+    if (showDressUp) {
+        DressUpScreen(onBack = { showDressUp = false })
         return
     }
 
@@ -174,6 +267,7 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                     state = state,
                     vm = vm,
                     onOpenSearch = { showSearch = true },
+                    onOpenCalendar = { showCalendar = true },
                     onOpenEditTransaction = { tx ->
                         editingTx = tx
                         showCategoryPicker = true
@@ -194,11 +288,19 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                         investNoteName = name
                     }
                 )
-                4 -> MineTabScreen(state, vm)
+                4 -> MineTabScreen(
+                    state = state,
+                    vm = vm,
+                    onOpenLoginRegister = { showMineLogin = true },
+                    onOpenImport = { mineFeaturePlaceholderTitle = "导入数据" },
+                    onOpenExport = { mineFeaturePlaceholderTitle = "导出数据" },
+                    onOpenDressUp = { showDressUp = true }
+                )
                 else -> DetailScreen(
                     state = state,
                     vm = vm,
                     onOpenSearch = { showSearch = true },
+                    onOpenCalendar = { showCalendar = true },
                     onOpenEditTransaction = { tx ->
                         editingTx = tx
                         showCategoryPicker = true
@@ -224,6 +326,7 @@ private fun SharkBottomBar(
     onSelect: (Int) -> Unit,
     onCenterAdd: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
     val tabs = listOf(
         BottomTab(0, "明细", Icons.Outlined.Article),
         BottomTab(1, "图表", Icons.Outlined.BarChart),
@@ -253,10 +356,10 @@ private fun SharkBottomBar(
                     ) {
                         Box(
                             Modifier
-                                .offset(y = (-28).dp)
+                                .offset(y = (-20).dp)
                                 .size(52.dp)
                                 .clip(CircleShape)
-                                .background(BookColors.BrandTeal)
+                                .background(primaryColor)
                                 .clickable { onCenterAdd() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -289,14 +392,14 @@ private fun SharkBottomBar(
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = tab.label,
-                            tint = if (selected) BookColors.BrandTeal else BookColors.TextGray,
+                            tint = if (selected) primaryColor else BookColors.TextGray,
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = tab.label,
                             fontSize = 10.sp,
-                            color = if (selected) BookColors.BrandTeal else BookColors.TextGray,
+                            color = if (selected) primaryColor else BookColors.TextGray,
                             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
                         )
                     }
@@ -307,146 +410,29 @@ private fun SharkBottomBar(
 }
 
 @Composable
-private fun ChartTabScreen(state: AppUiState, vm: AppViewModel) {
-    Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(BookColors.Main)
-                .statusBarsPadding()
-                .padding(16.dp)
-        ) {
-            Text(
-                "图表",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                color = BookColors.TextBlack
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "本月收支概览（后续可接趋势图、分类占比）",
-                fontSize = 12.sp,
-                color = BookColors.TextBlack.copy(alpha = 0.85f)
-            )
-        }
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = BookColors.White),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("总收入", color = BookColors.TextGray)
-                        Text(
-                            String.format("%.2f", state.summary?.totalIncome ?: 0.0),
-                            color = BookColors.TextBlack,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("总支出", color = BookColors.TextGray)
-                        Text(
-                            String.format("%.2f", state.summary?.totalExpense ?: 0.0),
-                            color = BookColors.RedExpense,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(color = BookColors.Line)
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("结余", color = BookColors.TextGray)
-                        Text(
-                            String.format("%.2f", state.summary?.balance ?: 0.0),
-                            color = BookColors.TextBlack,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            TextButton(onClick = { vm.loadHomeData() }) { Text("刷新数据", color = BookColors.TextBlack) }
-        }
-    }
-}
-
-@Composable
-private fun DiscoverTabScreen(state: AppUiState, vm: AppViewModel) {
-    Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(BookColors.Main)
-                .statusBarsPadding()
-                .padding(16.dp)
-        ) {
-            Text(
-                "定投",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                color = BookColors.TextBlack
-            )
-            Spacer(Modifier.height(4.dp))
-            Text("快捷模板", fontSize = 12.sp, color = BookColors.TextBlack.copy(alpha = 0.85f))
-        }
-        LazyColumn(
-            Modifier
-                .fillMaxSize()
-                .background(BookColors.Background)
-        ) {
-            items(state.templates, key = { it.id }) { t ->
-                Card(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = BookColors.White),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(t.categoryName, color = BookColors.TextBlack, fontSize = 15.sp)
-                            Text(
-                                t.note ?: "",
-                                color = BookColors.TextGray,
-                                fontSize = 12.sp
-                            )
-                        }
-                        TextButton(onClick = { vm.applyTemplate(t.id) }) {
-                            Text("记一笔", color = BookColors.TextBlack)
-                        }
-                    }
-                }
-            }
-            item {
-                if (state.templates.isEmpty()) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("暂无模板", color = BookColors.TextGray)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MineTabScreen(state: AppUiState, vm: AppViewModel) {
+private fun MineTabScreen(
+    state: AppUiState,
+    vm: AppViewModel,
+    onOpenLoginRegister: () -> Unit,
+    onOpenImport: () -> Unit,
+    onOpenExport: () -> Unit,
+    onOpenDressUp: () -> Unit
+) {
+    val primaryColor = rememberThemePrimaryColor()
+    val mineTextScale = rememberMineTextScale()
+    val context = LocalContext.current
+    val selectedTexture = remember { ThemeUtils.getTextureType(context) }
     var showAccountSettings by remember { mutableStateOf(false) }
+    val loginPhone = state.loginPhone
+    var localProfile by remember(loginPhone) { mutableStateOf(loadProfileByPhone(context, loginPhone)) }
+    val headerAvatarBitmap = remember(localProfile.avatarPath) {
+        if (localProfile.avatarPath.isBlank()) null else BitmapFactory.decodeFile(localProfile.avatarPath)
+    }
+    LaunchedEffect(showAccountSettings, loginPhone) {
+        if (!showAccountSettings) {
+            localProfile = loadProfileByPhone(context, loginPhone)
+        }
+    }
     val autoInvest by vm.autoInvest.collectAsState()
     val currentYear = LocalDate.now().year
     val yearsNeeded = remember(currentYear) { (currentYear - 9..currentYear).toSet() }
@@ -462,73 +448,89 @@ private fun MineTabScreen(state: AppUiState, vm: AppViewModel) {
         state.transactions.mapNotNull { it.parsedOccurredAt?.toLocalDate() }.distinct().size
     }
     val totalCount = state.transactions.size
+    LaunchedEffect(state.loggedIn) {
+        if (state.loggedIn) vm.ensureOverviewStatsLoaded()
+    }
+    val overviewDaysText = when {
+        state.overviewTotalDays != null -> state.overviewTotalDays.toString()
+        state.overviewLoading -> "..."
+        else -> totalDays.toString()
+    }
+    val overviewCountText = when {
+        state.overviewTotalCount != null -> state.overviewTotalCount.toString()
+        state.overviewLoading -> "..."
+        else -> totalCount.toString()
+    }
 
     if (showAccountSettings) {
-        MineAccountSettingsPlaceholder(onBack = { showAccountSettings = false })
+        MineAccountSettingsScreen(
+            loginPhone = loginPhone,
+            onBack = { showAccountSettings = false }
+        )
         return
     }
 
     Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(BookColors.Main)
-                .statusBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 18.dp)
+        TextureBackgroundContainer(
+            modifier = Modifier.fillMaxWidth(),
+            type = selectedTexture,
+            primaryColor = primaryColor
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                Modifier
+                    .statusBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(BookColors.White)
-                            .clickable { showAccountSettings = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "账号设置",
-                            tint = BookColors.TextGray,
-                            modifier = Modifier.size(42.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Text(
-                        text = "李鑫啊",
-                        color = BookColors.TextBlack,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BookColors.White)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AccountBalanceWallet,
-                            contentDescription = null,
-                            tint = BookColors.TextBlack,
-                            modifier = Modifier.size(20.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(BookColors.White)
+                                .clickable {
+                                    if (state.loggedIn) showAccountSettings = true else onOpenLoginRegister()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (headerAvatarBitmap != null) {
+                                Image(
+                                    bitmap = headerAvatarBitmap.asImageBitmap(),
+                                    contentDescription = "账号设置",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.Person,
+                                    contentDescription = "账号设置",
+                                    tint = BookColors.TextGray,
+                                    modifier = Modifier.size(42.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Text(
+                            text = if (state.loggedIn) {
+                                localProfile.nickname.ifBlank { "未设置昵称" }
+                            } else {
+                                "点击登录"
+                            },
+                            color = BookColors.TextBlack,
+                            style = MaterialTheme.typography.displaySmall.scaled(mineTextScale),
+                            fontWeight = FontWeight.Bold
                         )
-                        Spacer(Modifier.width(6.dp))
-                        Text("打卡", color = BookColors.TextBlack, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-            }
-            Spacer(Modifier.height(22.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                MineStatCell(value = investCount.toString(), label = "定投次数", modifier = Modifier.weight(1f))
-                MineStatCell(value = totalDays.toString(), label = "记账总天数", modifier = Modifier.weight(1f))
-                MineStatCell(value = totalCount.toString(), label = "记账总笔数", modifier = Modifier.weight(1f))
+                Spacer(Modifier.height(24.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    MineStatCell(value = investCount.toString(), label = "定投次数", textScale = mineTextScale, modifier = Modifier.weight(1f))
+                    MineStatCell(value = overviewDaysText, label = "记账总天数", textScale = mineTextScale, modifier = Modifier.weight(1f))
+                    MineStatCell(value = overviewCountText, label = "记账总笔数", textScale = mineTextScale, modifier = Modifier.weight(1f))
+                }
             }
         }
 
@@ -541,19 +543,19 @@ private fun MineTabScreen(state: AppUiState, vm: AppViewModel) {
         ) {
             item {
                 MineMenuCard {
-                    MineMenuRow(icon = Icons.Outlined.Person, title = "登录 / 注册")
-                }
-            }
-            item {
-                MineMenuCard {
-                    MineMenuRow(icon = Icons.Outlined.SwapHoriz, title = "导入数据")
+                    MineMenuRow(icon = Icons.Outlined.SwapHoriz, title = "导入数据", onClick = onOpenImport)
                     HorizontalDivider(color = BookColors.Line)
-                    MineMenuRow(icon = Icons.Outlined.WorkOutline, title = "导出数据")
-                }
-            }
-            item {
-                MineMenuCard {
-                    MineMenuRow(icon = Icons.Outlined.Face, title = "个性装扮")
+                    MineMenuRow(icon = Icons.Outlined.WorkOutline, title = "导出数据", onClick = onOpenExport)
+                    HorizontalDivider(color = BookColors.Line)
+                    MineMenuRow(icon = Icons.Outlined.Face, title = "个性装扮", onClick = onOpenDressUp)
+                    HorizontalDivider(color = BookColors.Line)
+                    MineMenuRow(
+                        icon = Icons.Outlined.Person,
+                        title = if (state.loggedIn) "退出登录" else "登录 / 注册",
+                        onClick = {
+                            if (state.loggedIn) vm.logout() else onOpenLoginRegister()
+                        }
+                    )
                 }
             }
         }
@@ -561,28 +563,90 @@ private fun MineTabScreen(state: AppUiState, vm: AppViewModel) {
 }
 
 @Composable
-private fun MineAccountSettingsPlaceholder(onBack: () -> Unit) {
+private fun MineFeaturePlaceholderScreen(
+    title: String,
+    onBack: () -> Unit
+) {
+    val primaryColor = rememberThemePrimaryColor()
+    val mineTextScale = rememberMineTextScale()
+    val context = LocalContext.current
+    val selectedTexture = remember { ThemeUtils.getTextureType(context) }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        Row(
+        TextureBackgroundContainer(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(BookColors.BrandTeal)
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            type = selectedTexture,
+            primaryColor = primaryColor
         ) {
-            Text(
-                text = "←",
-                modifier = Modifier.clickable { onBack() }.padding(6.dp),
-                color = BookColors.TextBlack,
-                fontSize = 18.sp
-            )
-            Spacer(Modifier.width(8.dp))
-            Text("账号设置", color = BookColors.TextBlack, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "返回",
+                    tint = BookColors.TextBlack,
+                    modifier = Modifier.size(24.dp).clickable { onBack() }
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    title,
+                    color = BookColors.TextBlack,
+                    style = MaterialTheme.typography.titleLarge.scaled(mineTextScale),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("${title}功能开发中", color = BookColors.TextGray, fontSize = 15.sp)
+        }
+    }
+}
+
+@Composable
+private fun MineAccountSettingsPlaceholder(onBack: () -> Unit) {
+    val primaryColor = rememberThemePrimaryColor()
+    val mineTextScale = rememberMineTextScale()
+    val context = LocalContext.current
+    val selectedTexture = remember { ThemeUtils.getTextureType(context) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        TextureBackgroundContainer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            type = selectedTexture,
+            primaryColor = primaryColor
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "返回",
+                    tint = BookColors.TextBlack,
+                    modifier = Modifier.size(24.dp).clickable { onBack() }
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "账号设置",
+                    color = BookColors.TextBlack,
+                    style = MaterialTheme.typography.titleLarge.scaled(mineTextScale),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("账号设置页面开发中", color = BookColors.TextGray, fontSize = 15.sp)
@@ -591,11 +655,20 @@ private fun MineAccountSettingsPlaceholder(onBack: () -> Unit) {
 }
 
 @Composable
-private fun MineStatCell(value: String, label: String, modifier: Modifier = Modifier) {
+private fun MineStatCell(value: String, label: String, textScale: Float, modifier: Modifier = Modifier) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = BookColors.TextBlack, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(
+            value,
+            color = BookColors.TextBlack,
+            style = MaterialTheme.typography.displaySmall.scaled(textScale),
+            fontWeight = FontWeight.Bold
+        )
         Spacer(Modifier.height(4.dp))
-        Text(label, color = BookColors.TextBlack.copy(alpha = 0.75f), fontSize = 15.sp)
+        Text(
+            label,
+            color = BookColors.TextBlack.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodyLarge.scaled(textScale)
+        )
     }
 }
 
@@ -604,8 +677,42 @@ private fun MineMenuCard(content: @Composable () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = BookColors.White),
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
     ) {
+        content()
+    }
+}
+
+@Composable
+private fun TextureBackgroundContainer(
+    modifier: Modifier = Modifier,
+    type: ThemeBackgroundManager.TextureType,
+    primaryColor: Color,
+    content: @Composable () -> Unit
+) {
+    val manager = remember { ThemeBackgroundManager() }
+    var measuredHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val measuredHeightDp = with(density) { measuredHeightPx.toDp() }
+    Box(
+        modifier = modifier.onSizeChanged {
+            measuredHeightPx = it.height
+        }
+    ) {
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(measuredHeightDp),
+            factory = { ctx ->
+                FrameLayout(ctx).apply {
+                    manager.applyTextureToView(this, type, primaryColor.toArgb())
+                }
+            },
+            update = { view ->
+                manager.applyTextureToView(view, type, primaryColor.toArgb())
+            }
+        )
         content()
     }
 }
@@ -613,27 +720,58 @@ private fun MineMenuCard(content: @Composable () -> Unit) {
 @Composable
 private fun MineMenuRow(
     icon: ImageVector,
-    title: String
+    title: String,
+    onClick: () -> Unit
 ) {
+    val primaryColor = rememberThemePrimaryColor()
+    val mineTextScale = rememberMineTextScale()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(BookColors.BrandTealIconBg),
+            modifier = Modifier,
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = BookColors.BrandTeal, modifier = Modifier.size(22.dp))
+            DecoratedThemeIcon(
+                icon = icon,
+                primaryColor = primaryColor,
+                modifier = Modifier.size(40.dp)
+            )
         }
         Spacer(Modifier.width(12.dp))
-        Text(title, color = BookColors.TextBlack, fontSize = 22.sp, modifier = Modifier.weight(1f))
-        Text(">", color = BookColors.TextGray, fontSize = 22.sp)
+        Text(
+            title,
+            color = BookColors.TextBlack,
+            style = MaterialTheme.typography.titleLarge.scaled(mineTextScale),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            ">",
+            color = BookColors.TextGray,
+            style = MaterialTheme.typography.titleLarge.scaled(mineTextScale)
+        )
     }
+}
+
+@Composable
+private fun rememberMineTextScale(): Float {
+    val widthDp = LocalConfiguration.current.screenWidthDp
+    return when {
+        widthDp <= 360 -> 0.92f
+        widthDp >= 420 -> 1.08f
+        else -> 1f
+    }
+}
+
+private fun TextStyle.scaled(scale: Float): TextStyle {
+    return copy(fontSize = fontSize.scaled(scale), lineHeight = lineHeight.scaled(scale))
+}
+
+private fun TextUnit.scaled(scale: Float): TextUnit {
+    return if (value.isNaN()) this else (value * scale).sp
 }
 
