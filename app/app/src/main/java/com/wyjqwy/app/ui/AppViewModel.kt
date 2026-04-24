@@ -284,20 +284,23 @@ class AppViewModel(
 
     fun loadHomeData() = viewModelScope.launch {
         runAction {
-            val auth = authHeader()
             val ym = _uiState.value.selectedYearMonth
-            val (tx, summary) = fetchMonthData(auth, ym)
-            val categoriesExpense = api.getCategories(auth, 1).data.orEmpty()
-            val categoriesIncome = api.getCategories(auth, 2).data.orEmpty()
-            val templates = api.getTemplates(auth, 1, 20).data?.records.orEmpty()
-            _uiState.value = _uiState.value.copy(
-                selectedYearMonth = ym,
-                transactions = tx,
-                categoriesExpense = categoriesExpense,
-                categoriesIncome = categoriesIncome,
-                templates = templates,
-                summary = summary
-            )
+            // access 已过期时须先 refresh 再重试，否则 401 后永远空列表
+            callWithTokenRefreshOnce {
+                val auth = authHeader()
+                val (tx, summary) = fetchMonthDataWithAuth(auth, ym)
+                val categoriesExpense = api.getCategories(auth, 1).data.orEmpty()
+                val categoriesIncome = api.getCategories(auth, 2).data.orEmpty()
+                val templates = api.getTemplates(auth, 1, 20).data?.records.orEmpty()
+                _uiState.value = _uiState.value.copy(
+                    selectedYearMonth = ym,
+                    transactions = tx,
+                    categoriesExpense = categoriesExpense,
+                    categoriesIncome = categoriesIncome,
+                    templates = templates,
+                    summary = summary
+                )
+            }
             "数据已刷新"
         }
     }
@@ -306,21 +309,24 @@ class AppViewModel(
      * 静默刷新：不改 loading，避免在轻量操作后出现全屏/页面级转圈。
      */
     fun loadHomeDataQuietly() = viewModelScope.launch {
+        if (!_uiState.value.loggedIn) return@launch
         try {
-            val auth = authHeader()
             val ym = _uiState.value.selectedYearMonth
-            val (tx, summary) = fetchMonthData(auth, ym)
-            val categoriesExpense = api.getCategories(auth, 1).data.orEmpty()
-            val categoriesIncome = api.getCategories(auth, 2).data.orEmpty()
-            val templates = api.getTemplates(auth, 1, 20).data?.records.orEmpty()
-            _uiState.value = _uiState.value.copy(
-                selectedYearMonth = ym,
-                transactions = tx,
-                categoriesExpense = categoriesExpense,
-                categoriesIncome = categoriesIncome,
-                templates = templates,
-                summary = summary
-            )
+            callWithTokenRefreshOnce {
+                val auth = authHeader()
+                val (tx, summary) = fetchMonthDataWithAuth(auth, ym)
+                val categoriesExpense = api.getCategories(auth, 1).data.orEmpty()
+                val categoriesIncome = api.getCategories(auth, 2).data.orEmpty()
+                val templates = api.getTemplates(auth, 1, 20).data?.records.orEmpty()
+                _uiState.value = _uiState.value.copy(
+                    selectedYearMonth = ym,
+                    transactions = tx,
+                    categoriesExpense = categoriesExpense,
+                    categoriesIncome = categoriesIncome,
+                    templates = templates,
+                    summary = summary
+                )
+            }
         } catch (_: Exception) {
             // 静默刷新失败不打断当前交互，后续用户操作会触发正常刷新。
         }
@@ -335,14 +341,16 @@ class AppViewModel(
     fun loadTransactionsForMonth(ym: YearMonth) = viewModelScope.launch {
         try {
             _uiState.value = _uiState.value.copy(loading = true, message = "")
-            val auth = authHeader()
-            val (tx, summary) = fetchMonthData(auth, ym)
-            _uiState.value = _uiState.value.copy(
-                loading = false,
-                selectedYearMonth = ym,
-                transactions = tx,
-                summary = summary
-            )
+            callWithTokenRefreshOnce {
+                val auth = authHeader()
+                val (tx, summary) = fetchMonthDataWithAuth(auth, ym)
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    selectedYearMonth = ym,
+                    transactions = tx,
+                    summary = summary
+                )
+            }
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 loading = false,
@@ -576,7 +584,7 @@ class AppViewModel(
         return list2.find { it.name == name }?.id ?: error("分类创建失败，请重试")
     }
 
-    private suspend fun fetchMonthData(auth: String, ym: YearMonth): Pair<List<TransactionItem>, StatsSummary?> {
+    private suspend fun fetchMonthDataWithAuth(auth: String, ym: YearMonth): Pair<List<TransactionItem>, StatsSummary?> {
         val from = ym.atDay(1).atStartOfDay()
         val to = ym.plusMonths(1).atDay(1).atStartOfDay()
         val fromStr = formatDateTime(from)
@@ -722,6 +730,34 @@ class AppViewModel(
             )
             loadHomeData()
             "已添加到模板"
+        }
+    }
+
+    /**
+     * 首页模板拖拽移出区域后删除；无提示、无全屏 loading。
+     * 先同步从本地列表移除，再请求服务端；成功后再静默全量刷新。
+     * 失败时只回滚本地模板列表，不调用 [loadHomeDataQuietly]：若 token 已异常，静默拉取里 [authHeader]
+     * 会 [forceLogoutOnAuthExpired] 并清空整页数据，表现成「首页没数据」。
+     */
+    fun deleteTemplateSilently(templateId: Long) {
+        val s = _uiState.value
+        val removed = s.templates.find { it.id == templateId } ?: return
+        _uiState.value = s.copy(templates = s.templates.filter { it.id != templateId })
+        viewModelScope.launch {
+            try {
+                callWithTokenRefreshOnce {
+                    val res = api.deleteTemplate(authHeader(), templateId)
+                    ensureOk(res)
+                }
+                loadHomeDataQuietly()
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.let { cur ->
+                    if (cur.templates.any { it.id == removed.id }) cur
+                    else cur.copy(
+                        templates = (listOf(removed) + cur.templates).sortedBy { it.sort }
+                    )
+                }
+            }
         }
     }
 

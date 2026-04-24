@@ -91,6 +91,12 @@ interface ApiService {
         @Body body: TemplateUpsertRequest
     ): ApiResponse<Void>
 
+    @DELETE("/api/templates/{id}")
+    suspend fun deleteTemplate(
+        @Header("Authorization") auth: String,
+        @Path("id") id: Long
+    ): ApiResponse<Void>
+
     @POST("/api/templates/{id}/apply")
     suspend fun applyTemplate(
         @Header("Authorization") auth: String,
