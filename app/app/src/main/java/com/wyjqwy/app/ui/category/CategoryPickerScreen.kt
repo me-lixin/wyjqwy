@@ -714,13 +714,13 @@ private fun appendAmountOperator(current: String, op: String): String {
  * 仅支持 +、-，从左到右计算（如 66+4=70，10-3+2=9）。
  * 未完成表达式（末尾为运算符或孤立的点）返回 null。
  */
-private fun evaluateAmountExpression(expr: String): Double? {
+private fun evaluateAmountExpression(expr: String): BigDecimal? {
     val t = expr.trim()
     if (t.isEmpty()) return null
     if (t.endsWith("+") || t.endsWith("-")) return null
     if (t.endsWith(".")) return null
     var pos = 0
-    fun parseDouble(): Double? {
+    fun parseDecimal(): BigDecimal? {
         val start = pos
         if (pos < t.length && t[pos] == '-') pos++
         if (pos >= t.length) return null
@@ -732,31 +732,33 @@ private fun evaluateAmountExpression(expr: String): Double? {
         }
         val sub = t.substring(start, pos)
         if (sub == "-" || sub == "-." || sub.endsWith(".")) return null
-        return sub.toDoubleOrNull()
+        return sub.toBigDecimalOrNull()
     }
-    var acc = parseDouble() ?: return null
+    var acc = parseDecimal() ?: return null
     while (pos < t.length) {
         val op = t[pos]
         if (op != '+' && op != '-') return null
         pos++
-        val next = parseDouble() ?: return null
-        acc = if (op == '+') acc + next else acc - next
+        val next = parseDecimal() ?: return null
+        acc = if (op == '+') acc.add(next) else acc.subtract(next)
     }
-    return acc
+    return acc.setScale(2, RoundingMode.HALF_UP)
 }
 
 private fun formatAmountDisplay(expr: String): String {
     if (expr.isBlank()) return "0"
     val v = evaluateAmountExpression(expr)
-    return if (v != null) formatAmountInput(v) else expr
+    return if (v != null) formatAmountInput(v.toDouble()) else expr
 }
 
 private fun parseAmountForSubmit(raw: String): Double? {
     if (raw.isBlank()) return null
-    evaluateAmountExpression(raw)?.let { return it }
+    evaluateAmountExpression(raw)?.let { return it.toDouble() }
     val normalized = if (raw.endsWith(".")) raw.dropLast(1) else raw
     if (normalized.isBlank()) return null
-    return normalized.toDoubleOrNull()
+    return normalized.toBigDecimalOrNull()
+        ?.setScale(2, RoundingMode.HALF_UP)
+        ?.toDouble()
 }
 
 private fun String.toLocalDateOrNull(): LocalDate? {

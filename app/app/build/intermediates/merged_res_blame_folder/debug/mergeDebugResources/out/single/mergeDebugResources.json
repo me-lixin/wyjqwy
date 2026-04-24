@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.wyjqwy.app-debug-63:/drawable_bg_texture_pattern_overlay.xml.flat",
+        "source": "com.wyjqwy.app-main-65:/drawable/bg_texture_pattern_overlay.xml"
+    },
+    {
+        "merged": "com.wyjqwy.app-debug-63:/drawable_bg_texture_pattern.xml.flat",
+        "source": "com.wyjqwy.app-main-65:/drawable/bg_texture_pattern.xml"
+    },
+    {
+        "merged": "C:\\Users\\11217\\.gradle\\daemon\\9.0-milestone-1\\com.wyjqwy.app-debug-63:\\drawable_bg_texture_gradient.xml.flat",
+        "source": "C:\\Users\\11217\\.gradle\\daemon\\9.0-milestone-1\\com.wyjqwy.app-main-65:\\drawable\\bg_texture_gradient.xml"
+    }
+]

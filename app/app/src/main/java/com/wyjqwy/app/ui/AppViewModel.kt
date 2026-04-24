@@ -512,6 +512,30 @@ class AppViewModel(
         occurredAt: LocalDateTime = LocalDateTime.now(),
         onSuccess: () -> Unit
     ) = viewModelScope.launch {
+        // 负 id 是本地乐观插入的临时单据，服务端不存在，不能走 update。
+        // 这里改为：先移除本地临时项，再按新增提交。
+        if (transactionId <= 0L) {
+            val cur = _uiState.value
+            val merged = cur.transactions.filterNot { it.id == transactionId }
+            removeTransactionFromChartCaches(transactionId)
+            removeTransactionFromAutoInvestCaches(transactionId)
+            overviewTransactionsCache = overviewTransactionsCache?.filterNot { it.id == transactionId }
+            _uiState.value = cur.copy(
+                transactions = merged,
+                summary = recomputeSummary(merged)
+            )
+            syncOverviewFromCacheIfPresent()
+            addTransactionAfterCategory(
+                type = type,
+                categoryName = categoryName,
+                iconKey = iconKey,
+                amount = amount,
+                note = note,
+                occurredAt = occurredAt,
+                onSuccess = onSuccess
+            )
+            return@launch
+        }
         try {
             _uiState.value = _uiState.value.copy(loading = true, message = "")
             var categoryId = 0L

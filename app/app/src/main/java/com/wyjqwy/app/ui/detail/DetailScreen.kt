@@ -82,6 +82,7 @@ import com.wyjqwy.app.ui.category.categoryIconForName
 import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import com.wyjqwy.app.ui.util.groupTransactionsByDay
+import com.wyjqwy.app.ui.util.toAmountText
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -93,6 +94,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import java.math.BigDecimal
 import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -226,6 +228,7 @@ fun DetailScreen(
 
     var showYearMonthPicker by remember { mutableStateOf(false) }
     var pendingDeleteTx by remember { mutableStateOf<TransactionItem?>(null) }
+    var templateDragging by remember { mutableStateOf(false) }
     val appTitle = stringResource(R.string.app_display_name)
     val appLogo = stringResource(R.string.app_logo_glyph)
 
@@ -272,7 +275,8 @@ fun DetailScreen(
             onOpenYearMonthPicker = { showYearMonthPicker = true },
             onApplyTemplate = { vm.applyTemplate(it.id) },
             onDeleteTemplate = { vm.deleteTemplateSilently(it.id) },
-            modifier = Modifier.zIndex(1f)
+            onTemplateDragActiveChanged = { templateDragging = it },
+            modifier = Modifier.zIndex(if (templateDragging) 200f else 1f)
         )
 
         // 🌟 修复二：将 AnimatedContent 和 Loading 剥离，避免相互销毁
@@ -357,8 +361,12 @@ fun DetailScreen(
                             }
                         } else {
                             groups.forEach { (date, dayItems) ->
-                                val dayIncome = dayItems.filter { it.type == 2 }.sumOf { kotlin.math.abs(it.amount) }
-                                val dayExpense = dayItems.filter { it.type == 1 }.sumOf { kotlin.math.abs(it.amount) }
+                                val dayIncome = dayItems
+                                    .filter { it.type == 2 }
+                                    .fold(BigDecimal.ZERO) { acc, tx -> acc + BigDecimal.valueOf(kotlin.math.abs(tx.amount)) }
+                                val dayExpense = dayItems
+                                    .filter { it.type == 1 }
+                                    .fold(BigDecimal.ZERO) { acc, tx -> acc + BigDecimal.valueOf(kotlin.math.abs(tx.amount)) }
                                 item(key = "h_${date}") {
                                     Row(
                                         Modifier
@@ -375,9 +383,9 @@ fun DetailScreen(
                                         )
                                         Text(
                                             text = if (state.amountVisible) {
-                                                "收入 ${String.format("%.2f", dayIncome)}  支出 ${String.format("%.2f", dayExpense)}"
+                                                buildDayStatsText(dayIncome, dayExpense, masked = false)
                                             } else {
-                                                "收入 **** 支出 ****"
+                                                buildDayStatsText(dayIncome, dayExpense, masked = true)
                                             },
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 13.sp
@@ -466,5 +474,12 @@ fun DetailScreen(
             }
         }
     }
+}
+
+private fun buildDayStatsText(income: BigDecimal, expense: BigDecimal, masked: Boolean): String {
+    val parts = mutableListOf<String>()
+    if (income > BigDecimal.ZERO) parts += "收入 ${if (masked) "****" else income.toAmountText()}"
+    if (expense > BigDecimal.ZERO) parts += "支出 ${if (masked) "****" else expense.toAmountText()}"
+    return if (parts.isEmpty()) "无收支" else parts.joinToString("  ")
 }
 

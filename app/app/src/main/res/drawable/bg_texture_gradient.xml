@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!--
+      Base gradient texture:
+      - Runtime can replace colors and orientation with GradientDrawable API.
+      - This XML acts as the default/fallback style.
+    -->
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="@color/texture_primary_default"
+        android:endColor="@color/texture_secondary_default" />
+
+    <corners android:radius="12dp" />
+</shape>
