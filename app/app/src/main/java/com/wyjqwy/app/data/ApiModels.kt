@@ -64,6 +64,21 @@ data class TransactionUpsertRequest(
     val occurredAt: String
 )
 
+/**
+ * 语音记账请求（先占位，后端可继续扩展字段）。
+ * 暂复用 /api/transactions 路径，按 payload 区分普通记账与语音记账。
+ */
+data class VoiceTransactionRequest(
+    val mode: String = "voice",
+    val voiceText: String? = null,
+    val audioBase64: String? = null,
+    val occurredAt: String? = null
+)
+
+data class VoiceTransactionResult(
+    val saved: Boolean = false
+)
+
 data class TemplateItem(
     val id: Long,
     val type: Int,

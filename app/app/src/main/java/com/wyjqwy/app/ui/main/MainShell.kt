@@ -2,7 +2,15 @@
 
 package com.wyjqwy.app.ui.main
 
+import android.Manifest
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
@@ -29,6 +37,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -37,6 +46,7 @@ import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.WorkOutline
@@ -53,6 +63,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,7 +78,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -97,9 +112,12 @@ import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
 import java.time.LocalDate
 import android.widget.FrameLayout
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import kotlin.math.sqrt
 
 @Composable
 fun MainShell(state: AppUiState, vm: AppViewModel) {
+    val context = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
     var showCategoryPicker by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
@@ -111,6 +129,89 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
     var statsTx by remember { mutableStateOf<TransactionItem?>(null) }
     var investNoteKey by remember { mutableStateOf<String?>(null) }
     var investNoteName by remember { mutableStateOf<String?>(null) }
+    var voiceArmVisible by remember { mutableStateOf(false) }
+    var voiceModeVisible by remember { mutableStateOf(false) }
+    var voiceMicSelected by remember { mutableStateOf(false) }
+    var centerAddWindowCenter by remember { mutableStateOf<Offset?>(null) }
+    var recognizedVoiceText by remember { mutableStateOf("") }
+    val speechRecognizer = remember(context) {
+        if (SpeechRecognizer.isRecognitionAvailable(context)) {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } else null
+    }
+    val speechIntent = remember {
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+    }
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            recognizedVoiceText = ""
+            voiceModeVisible = true
+        } else {
+            voiceArmVisible = false
+            voiceModeVisible = false
+            vm.clearUiMessage()
+        }
+    }
+    DisposableEffect(speechRecognizer) {
+        onDispose {
+            speechRecognizer?.cancel()
+            speechRecognizer?.destroy()
+        }
+    }
+    LaunchedEffect(voiceModeVisible) {
+        if (!voiceModeVisible) {
+            speechRecognizer?.stopListening()
+            return@LaunchedEffect
+        }
+        recognizedVoiceText = ""
+        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: android.os.Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(error: Int) {}
+            override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+            override fun onPartialResults(partialResults: android.os.Bundle?) {
+                val text = partialResults
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                    .orEmpty()
+                if (text.isNotBlank()) recognizedVoiceText = text
+            }
+            override fun onResults(results: android.os.Bundle?) {
+                val text = results
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                    .orEmpty()
+                if (text.isNotBlank()) recognizedVoiceText = text
+            }
+        })
+        speechRecognizer?.startListening(speechIntent)
+    }
+    val density = LocalDensity.current
+    val micSizeDp = 52.dp
+    val micGapDp = 18.dp
+    val micSizePx = with(density) { micSizeDp.toPx() }
+    val micGapPx = with(density) { micGapDp.toPx() }
+    val micCenter = centerAddWindowCenter?.let { Offset(it.x, it.y - micSizePx - micGapPx) }
+    fun updateMicSelection(pointer: Offset?) {
+        val center = micCenter
+        if (!voiceArmVisible || pointer == null || center == null) {
+            voiceMicSelected = false
+            return
+        }
+        val dx = pointer.x - center.x
+        val dy = pointer.y - center.y
+        val dist = sqrt(dx * dx + dy * dy)
+        voiceMicSelected = dist <= micSizePx * 0.6f
+    }
     val detailListState = rememberLazyListState()
     val chartListState = rememberLazyListState()
     val autoInvestListState = rememberLazyListState()
@@ -243,25 +344,51 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
         return
     }
 
-    Scaffold(
-        containerColor = BookColors.Background,
-        contentWindowInsets = WindowInsets.navigationBars,
-        bottomBar = {
-            SharkBottomBar(
-                selectedIndex = tab,
-                onSelect = { tab = it },
-                onCenterAdd = {
-                    editingTx = null
-                    showCategoryPicker = true
-                }
-            )
-        }
-    ) { innerPadding ->
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = BookColors.Background,
+            contentWindowInsets = WindowInsets.navigationBars,
+            bottomBar = {
+                SharkBottomBar(
+                    selectedIndex = tab,
+                    onSelect = { tab = it },
+                    onCenterAdd = {
+                        editingTx = null
+                        showCategoryPicker = true
+                    },
+                    onCenterAddPositionChanged = { centerAddWindowCenter = it },
+                    onVoiceGestureStart = {
+                        voiceArmVisible = true
+                        voiceMicSelected = false
+                    },
+                    onVoiceGestureMove = { pointer ->
+                        updateMicSelection(pointer)
+                    },
+                    onVoiceGestureEnd = {
+                        val shouldTrigger = voiceMicSelected
+                        voiceArmVisible = false
+                        voiceMicSelected = false
+                        if (shouldTrigger) {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                recognizedVoiceText = ""
+                                voiceModeVisible = true
+                            } else {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
             when (tab) {
                 0 -> DetailScreen(
                     state = state,
@@ -309,6 +436,108 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                     listState = detailListState
                 )
             }
+            }
+        }
+
+        if (voiceArmVisible || voiceModeVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable {
+                        speechRecognizer?.cancel()
+                        voiceArmVisible = false
+                        voiceMicSelected = false
+                        voiceModeVisible = false
+                    }
+            )
+        }
+
+        if (voiceArmVisible && micCenter != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopStart
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            val x = (micCenter.x - micSizePx / 2f).toInt()
+                            val y = (micCenter.y - micSizePx / 2f).toInt()
+                            androidx.compose.ui.unit.IntOffset(x, y)
+                        }
+                        .size(micSizeDp)
+                        .clip(CircleShape)
+                        .background(if (voiceMicSelected) Color(0xFF6FD14A) else Color(0xFF86DF63)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Mic,
+                        contentDescription = "语音记账",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
+        }
+
+        if (voiceModeVisible) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(width = 140.dp, height = 86.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0xFF86DF63)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Mic,
+                        contentDescription = null,
+                        tint = Color(0xFF2B4B2A),
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(start = 20.dp, end = 20.dp, bottom = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = {
+                            speechRecognizer?.cancel()
+                            voiceModeVisible = false
+                            voiceArmVisible = false
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Text("取消", color = Color.White, fontSize = 20.sp)
+                    }
+                    TextButton(
+                        onClick = {
+                            speechRecognizer?.stopListening()
+                            val payload = recognizedVoiceText.ifBlank { "语音记账" }
+                            vm.submitVoiceAccounting(payload) {
+                                voiceModeVisible = false
+                                voiceArmVisible = false
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Text("发送", color = Color.White, fontSize = 20.sp)
+                    }
+                }
+            }
         }
     }
 }
@@ -324,7 +553,11 @@ private data class BottomTab(
 private fun SharkBottomBar(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    onCenterAdd: () -> Unit
+    onCenterAdd: () -> Unit,
+    onCenterAddPositionChanged: (Offset) -> Unit,
+    onVoiceGestureStart: () -> Unit,
+    onVoiceGestureMove: (Offset) -> Unit,
+    onVoiceGestureEnd: () -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
     val tabs = listOf(
@@ -354,12 +587,37 @@ private fun SharkBottomBar(
                             .fillMaxHeight(),
                         contentAlignment = Alignment.TopCenter
                     ) {
+                        var centerButtonCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
                         Box(
                             Modifier
                                 .offset(y = (-20).dp)
                                 .size(52.dp)
+                                .onGloballyPositioned { c ->
+                                    centerButtonCoords = c
+                                    onCenterAddPositionChanged(c.boundsInWindow().center)
+                                }
                                 .clip(CircleShape)
                                 .background(primaryColor)
+                                .pointerInput(Unit) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            onVoiceGestureStart()
+                                        },
+                                        onDrag = { change, amount ->
+                                            change.consume()
+                                            val coords = centerButtonCoords
+                                            if (coords != null) {
+                                                onVoiceGestureMove(coords.boundsInWindow().topLeft + change.position)
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            onVoiceGestureEnd()
+                                        },
+                                        onDragCancel = {
+                                            onVoiceGestureEnd()
+                                        }
+                                    )
+                                }
                                 .clickable { onCenterAdd() },
                             contentAlignment = Alignment.Center
                         ) {

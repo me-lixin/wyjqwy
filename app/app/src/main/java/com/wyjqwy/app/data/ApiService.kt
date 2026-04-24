@@ -65,6 +65,12 @@ interface ApiService {
         @Body body: TransactionUpsertRequest
     ): ApiResponse<Void>
 
+    @POST("/api/transactions")
+    suspend fun createTransactionByVoice(
+        @Header("Authorization") auth: String,
+        @Body body: VoiceTransactionRequest
+    ): ApiResponse<VoiceTransactionResult>
+
     @PUT("/api/transactions/{id}")
     suspend fun updateTransaction(
         @Header("Authorization") auth: String,

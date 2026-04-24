@@ -786,6 +786,33 @@ class AppViewModel(
     }
 
     /**
+     * 语音记账（前端先按占位文本提交，后端可在 /api/transactions 内继续完善解析能力）。
+     */
+    fun submitVoiceAccounting(voiceText: String, onSuccess: (() -> Unit)? = null) = viewModelScope.launch {
+        try {
+            _uiState.value = _uiState.value.copy(loading = true, message = "")
+            callWithTokenRefreshOnce {
+                val res = api.createTransactionByVoice(
+                    authHeader(),
+                    VoiceTransactionRequest(
+                        voiceText = voiceText,
+                        occurredAt = formatDateTime(LocalDateTime.now())
+                    )
+                )
+                ensureOk(res)
+            }
+            _uiState.value = _uiState.value.copy(loading = false, message = "语音记账已提交")
+            loadHomeDataQuietly()
+            onSuccess?.invoke()
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                loading = false,
+                message = "请求失败: ${formatApiError(e)}"
+            )
+        }
+    }
+
+    /**
      * 首页模板拖拽移出区域后删除；无提示、无全屏 loading。
      * 先同步从本地列表移除，再请求服务端；成功后再静默全量刷新。
      * 失败时只回滚本地模板列表，不调用 [loadHomeDataQuietly]：若 token 已异常，静默拉取里 [authHeader]
