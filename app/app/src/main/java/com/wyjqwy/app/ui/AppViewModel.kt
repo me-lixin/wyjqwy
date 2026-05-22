@@ -3,6 +3,7 @@ package com.wyjqwy.app.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wyjqwy.app.data.*
+import com.wyjqwy.app.data.bill.BillCsv
 import com.wyjqwy.app.ui.invest.AutoInvestState
 import com.wyjqwy.app.ui.stats.ChartStatsState
 import com.wyjqwy.app.ui.util.parseOccurredAtToLocalDateTime
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import retrofit2.HttpException
 import java.io.IOException
 import java.time.LocalDate
@@ -665,6 +667,102 @@ class AppViewModel(
     }
 
     /**
+     * 导出用：按时间范围分页拉取全部账单（含多页）。
+     */
+    suspend fun fetchTransactionsForExport(from: LocalDateTime, toExclusive: LocalDateTime): List<TransactionItem> {
+        return callWithTokenRefreshOnce {
+            val auth = authHeader()
+            var page = 1L
+            val size = 500L
+            val all = mutableListOf<TransactionItem>()
+            while (true) {
+                val res = api.getTransactions(
+                    auth,
+                    formatDateTime(from),
+                    formatDateTime(toExclusive),
+                    null,
+                    page,
+                    size
+                )
+                ensureOk(res)
+                val data = res.data ?: break
+                val records = data.records.map { it.withParsedOccurredAt() }
+                all += records
+                if (records.isEmpty() || all.size >= data.total) break
+                page++
+            }
+            all
+        }
+    }
+
+    /**
+     * 从 CSV 导入账单：文件中分类名在本地不存在时归入「其他支出/其他收入」。
+     * @return 成功写入的条数
+     */
+    suspend fun importBillCsvUtf8(csvText: String): kotlin.Result<Int> {
+        return try {
+            when (val parsed = BillCsv.parseImport(csvText)) {
+                is BillCsv.ParseResult.Error ->
+                    kotlin.Result.failure(IllegalArgumentException(BillCsv.formatImportError(parsed)))
+                is BillCsv.ParseResult.Ok -> {
+                    var n = 0
+                    for (row in parsed.rows) {
+                        try {
+                            callWithTokenRefreshOnce {
+                                val categoryId = resolveCategoryIdForImport(row.type, row.categoryName)
+                                val createRes = api.createTransaction(
+                                    authHeader(),
+                                    TransactionUpsertRequest(
+                                        type = row.type,
+                                        amount = row.amount,
+                                        categoryId = categoryId,
+                                        note = row.note,
+                                        occurredAt = formatDateTime(row.occurredAt)
+                                    )
+                                )
+                                ensureOk(createRes)
+                            }
+                            n++
+                        } catch (e: Exception) {
+                            val detail = formatApiError(e)
+                            return kotlin.Result.failure(
+                                IllegalArgumentException("第 ${row.lineNumber} 行数据同步失败：$detail")
+                            )
+                        }
+                    }
+                    refreshCachesAfterBulkImport()
+                    kotlin.Result.success(n)
+                }
+            }
+        } catch (e: Exception) {
+            kotlin.Result.failure(e)
+        }
+    }
+
+    private suspend fun resolveCategoryIdForImport(type: Int, categoryName: String): Long {
+        val listRes = api.getCategories(authHeader(), type)
+        ensureOk(listRes)
+        val list = listRes.data.orEmpty()
+        val name = categoryName.trim()
+        if (name.isNotEmpty()) {
+            list.find { it.name == name }?.let { return it.id }
+        }
+        val fallback = if (type == 1) "其他支出" else "其他收入"
+        val fb = list.find { it.name == fallback }
+            ?: error("当前账户缺少系统分类「$fallback」，无法导入")
+        return fb.id
+    }
+
+    private fun refreshCachesAfterBulkImport() {
+        overviewTransactionsCache = null
+        clearChartStats()
+        clearAutoInvestState()
+        _uiState.value = _uiState.value.copy(overviewTotalDays = null, overviewTotalCount = null)
+        loadHomeDataQuietly()
+        ensureOverviewStatsLoaded()
+    }
+
+    /**
      * 全局搜索：每次关键词变化实时向后端拉取全量历史后再做关键词过滤，
      * 不局限于当前月份缓存。
      */
@@ -772,12 +870,34 @@ class AppViewModel(
     private fun formatApiError(e: Throwable): String {
         if (e is HttpException) {
             val code = e.code()
+            val serverMsg = e.response()?.errorBody()?.string().orEmpty().let { body ->
+                runCatching { JSONObject(body).optString("message") }.getOrNull().orEmpty()
+            }
+            val normalized = mapAuthMessage(serverMsg)
+            if (normalized.isNotBlank()) return normalized
             return when (code) {
                 401, 403 -> "登录已过期或无效（HTTP $code），已尝试刷新；若仍失败请重新登录"
+                400 -> "请求参数不正确，请检查输入内容"
                 else -> e.message ?: "HTTP $code"
             }
         }
         return e.message ?: e.javaClass.simpleName
+    }
+
+    private fun mapAuthMessage(raw: String): String {
+        val msg = raw.trim()
+        if (msg.isBlank()) return ""
+        val lower = msg.lowercase()
+        return when {
+            msg.contains("username or password error", ignoreCase = true) -> "手机号或密码错误"
+            msg.contains("username already exists", ignoreCase = true) -> "手机号已被注册"
+            msg.contains("invalid request", ignoreCase = true) -> "请求参数不正确，请检查输入"
+            lower.contains("username") && lower.contains("blank") -> "手机号不能为空"
+            lower.contains("username") && (lower.contains("size") || lower.contains("pattern")) -> "请输入正确的11位手机号"
+            lower.contains("password") && lower.contains("blank") -> "密码不能为空"
+            lower.contains("password") && lower.contains("size") -> "密码长度不符合要求"
+            else -> msg
+        }
     }
 
     fun applyTemplate(templateId: Long) = viewModelScope.launch {
@@ -789,6 +909,10 @@ class AppViewModel(
     }
 
     fun createTemplateFromTransaction(tx: TransactionItem) = viewModelScope.launch {
+        if (_uiState.value.templates.size >= 15) {
+            _uiState.value = _uiState.value.copy(message = "最多添加15个模板")
+            return@launch
+        }
         runAction {
             api.createTemplate(
                 authHeader(),
@@ -810,7 +934,6 @@ class AppViewModel(
      */
     fun submitVoiceAccounting(
         voiceText: String? = null,
-        audioBase64: String? = null,
         onSuccess: (() -> Unit)? = null,
         onFinished: ((Boolean) -> Unit)? = null
     ) = viewModelScope.launch {
@@ -822,7 +945,6 @@ class AppViewModel(
                     authHeader(),
                     VoiceTransactionRequest(
                         voiceText = voiceText,
-                        audioBase64 = audioBase64,
                         occurredAt = formatDateTime(occurredAt)
                     )
                 )
@@ -916,7 +1038,7 @@ class AppViewModel(
             val message = block()
             _uiState.value = _uiState.value.copy(loading = false, message = message)
         } catch (e: Exception) {
-            _uiState.value = _uiState.value.copy(loading = false, message = "请求失败: ${e.message}")
+            _uiState.value = _uiState.value.copy(loading = false, message = formatApiError(e))
         }
     }
 

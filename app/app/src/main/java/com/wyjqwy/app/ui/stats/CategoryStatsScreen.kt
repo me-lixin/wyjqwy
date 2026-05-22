@@ -2,20 +2,10 @@ package com.wyjqwy.app.ui.stats
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,27 +13,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,16 +27,17 @@ import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-private enum class CategorySortMode(val label: String) {
+enum class CategorySortMode(val label: String) {
     TIME_DESC("时间↓"),
     TIME_ASC("时间↑"),
     AMOUNT_DESC("金额↓"),
@@ -74,14 +50,28 @@ fun CategoryStatsScreen(
     state: AppUiState,
     vm: AppViewModel,
     seedTx: TransactionItem,
+    sortMode: CategorySortMode = CategorySortMode.TIME_DESC,
+    onSortModeChange: (CategorySortMode) -> Unit = {},
+    listState: LazyListState = rememberLazyListState(),
     scopedTransactions: List<TransactionItem>? = null,
     loading: Boolean = false,
     onBack: () -> Unit,
     onEditTransaction: (TransactionItem) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
-    var sortMode by remember { mutableStateOf(CategorySortMode.TIME_DESC) }
+    val tc = themeColors()
     var pendingDeleteTx by remember { mutableStateOf<TransactionItem?>(null) }
+    
+    // 🌟 核心：引入一个滚动触发计数器
+    var scrollTrigger by remember { mutableIntStateOf(0) }
+
+    // 🌟 只有当 scrollTrigger 增加时（即手动点击了排序），才执行回顶
+    LaunchedEffect(scrollTrigger) {
+        if (scrollTrigger > 0) {
+            // scrollToItem(0) 是瞬间回顶，animateScrollToItem(0) 是平滑滚动
+            listState.scrollToItem(0)
+        }
+    }
 
     val source = scopedTransactions ?: state.transactions
     val txList = remember(source, seedTx, sortMode) {
@@ -100,6 +90,7 @@ fun CategoryStatsScreen(
                 }
             )
     }
+
     val totalAmount = txList.sumOf { abs(it.amount) }
     val avgAmount = if (txList.isEmpty()) 0.0 else totalAmount / txList.size
 
@@ -112,7 +103,7 @@ fun CategoryStatsScreen(
                 TextButton(onClick = {
                     vm.deleteTransaction(tx.id)
                     pendingDeleteTx = null
-                }) { Text("删除", color = BookColors.RedExpense) }
+                }) { Text("删除", color = tc.expense) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteTx = null }) { Text("取消") }
@@ -125,7 +116,7 @@ fun CategoryStatsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // 顶部工具栏：返回箭头旁改为“账单明细”
+        // 顶部工具栏
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,11 +126,11 @@ fun CategoryStatsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = BookColors.TextBlack)
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = tc.textPrimary)
             }
             Text(
                 text = "分类汇总",
-                color = BookColors.TextBlack,
+                color = tc.textPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -151,19 +142,17 @@ fun CategoryStatsScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(BookColors.White)
+                .background(tc.surface)
                 .padding(horizontal = 16.dp, vertical = 18.dp)
         ) {
             Column {
-                // 卡片标题改为当前分类名称
                 Text(
                     text = seedTx.categoryName,
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp
                 )
                 Spacer(Modifier.size(16.dp))
-                // 优化 Y 轴对齐：使用 Alignment.Bottom 确保数字基线对齐
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -176,7 +165,7 @@ fun CategoryStatsScreen(
             }
         }
 
-        // 排序筛选栏（自适应换行，避免窄屏最后一个按钮被挤压变形）
+        // 排序筛选栏
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -187,117 +176,88 @@ fun CategoryStatsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.Sort,
-                    contentDescription = null,
-                    tint = BookColors.TextGray,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text("排序", color = BookColors.TextGray, fontSize = 12.sp)
+                Icon(Icons.AutoMirrored.Outlined.Sort, null, tint = tc.textSecondary, modifier = Modifier.size(16.dp))
+                Text("排序", color = tc.textSecondary, fontSize = 12.sp)
             }
             SortChipWrap(
                 sortMode = sortMode,
-                onSelect = { sortMode = it },
+                onSelect = { newMode ->
+                    // 🌟 只有模式真的改变时才处理
+                    if (sortMode != newMode) {
+                        onSortModeChange(newMode)
+                        // 🌟 关键：手动操作时增加计数器，触发顶部的 LaunchedEffect
+                        scrollTrigger++ 
+                    }
+                },
                 primaryColor = primaryColor
             )
         }
 
         if (loading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = primaryColor)
             }
-            return@Column
-        }
-
-        // 明细列表
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(txList, key = { it.id }) { tx ->
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { value ->
-                        if (value != SwipeToDismissBoxValue.Settled) pendingDeleteTx = tx
-                        false
-                    }
-                )
-                SwipeToDismissBox(
-                    state = dismissState,
-                    backgroundContent = {
-                        if (dismissState.progress > 0f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(BookColors.RedExpense.copy(alpha = 0.12f))
-                                    .padding(horizontal = 16.dp),
-                                contentAlignment = Alignment.CenterEnd
+        } else {
+            LazyColumn(
+                state = listState, // 🌟 必须绑定外部传入的 listState
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // 🌟 使用 key = { it.id } 对保持位置非常重要
+                items(txList, key = { it.id }) { tx ->
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            if (value != SwipeToDismissBoxValue.Settled) pendingDeleteTx = tx
+                            false
+                        }
+                    )
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        backgroundContent = {
+                            if (dismissState.progress > 0f) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize().background(tc.expense.copy(alpha = 0.12f)).padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Icon(Icons.Outlined.DeleteOutline, "删除", tint = tc.expense)
+                                }
+                            }
+                        }
+                    ) {
+                        Column(Modifier.background(MaterialTheme.colorScheme.surface)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.DeleteOutline,
-                                    contentDescription = "删除明细",
-                                    tint = BookColors.RedExpense
-                                )
-                            }
-                        }
-                    }
-                ) {
-                    Column(Modifier.background(MaterialTheme.colorScheme.surface)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formatDateWithWeekday(tx.occurredAt),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = if (tx.type == 1) "支出 ${abs(tx.amount).toAmountText()}" else "收入 ${abs(tx.amount).toAmountText()}",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 13.sp
-                            )
-                        }
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { onEditTransaction(tx) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CategoryIcon(tx.categoryName, tx.categoryIcon)
-                            Spacer(Modifier.size(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                                Text(formatDateWithWeekday(tx.occurredAt), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                                 Text(
-                                    text = if (!tx.note.isNullOrBlank()) tx.note else tx.categoryName,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 15.sp
-                                )
-                                Spacer(Modifier.size(2.dp))
-                                Text(
-                                    text = formatTime(tx.occurredAt),
+                                    text = if (tx.type == 1) "支出 ${abs(tx.amount).toAmountText()}" else "收入 ${abs(tx.amount).toAmountText()}",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                    fontSize = 13.sp
                                 )
                             }
-                            Text(
-                                text = if (state.amountVisible) {
-                                    val prefix = if (tx.type == 2) "+" else "-"
-                                    "$prefix${abs(tx.amount).toAmountText()}"
-                                } else "****",
-                                color = if (tx.type == 2) androidx.compose.ui.graphics.Color(0xFF2E7D32) else BookColors.RedExpense,
-                                fontSize = 12.sp, // 稍微缩小了列表金额字号，避免压迫感
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                Modifier.fillMaxWidth().clickable { onEditTransaction(tx) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CategoryIcon(tx.categoryName, tx.categoryIcon)
+                                Spacer(Modifier.size(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(if (!tx.note.isNullOrBlank()) tx.note else tx.categoryName, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                                    Spacer(Modifier.size(2.dp))
+                                    Text(formatTime(tx.occurredAt), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                                }
+                                Text(
+                                    text = if (state.amountVisible) {
+                                        val prefix = if (tx.type == 2) "+" else "-"
+                                        "$prefix${abs(tx.amount).toAmountText()}"
+                                    } else "****",
+                                    color = if (tx.type == 2) tc.income else tc.expense,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp, modifier = Modifier.padding(start = 60.dp))
                         }
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                            thickness = 0.5.dp,
-                            modifier = Modifier.padding(start = 60.dp)
-                        )
                     }
                 }
             }
@@ -305,69 +265,41 @@ fun CategoryStatsScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SortChipWrap(
     sortMode: CategorySortMode,
     onSelect: (CategorySortMode) -> Unit,
     primaryColor: androidx.compose.ui.graphics.Color
 ) {
-    // 使用 Row 替代 FlowRow 确保不换行
+    val tc = themeColors()
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        // 按钮之间的间距，如果是 4 个按钮，建议 4.dp 或 6.dp，避免太挤
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         CategorySortMode.entries.forEach { mode ->
             AssistChip(
                 onClick = { onSelect(mode) },
-                // 使用 Box 包裹文字实现居中，并稍微调小字号确保在窄屏手机上不折行
-                label = {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = mode.label,
-                            fontSize = 11.sp,
-                            maxLines = 1 // 强制单行
-                        )
-                    }
-                },
+                label = { Box(Modifier.fillMaxWidth(), Alignment.Center) { Text(mode.label, fontSize = 11.sp, maxLines = 1) } },
                 colors = AssistChipDefaults.assistChipColors(
-                    containerColor = if (sortMode == mode) primaryColor else BookColors.White,
-                    labelColor = if (sortMode == mode) BookColors.White else BookColors.TextBlack,
-                    // 即使没选中也给个淡淡的边框，更有质感
+                    containerColor = if (sortMode == mode) primaryColor else tc.surface,
+                    labelColor = if (sortMode == mode) Color.White else tc.textPrimary
                 ),
-                border = AssistChipDefaults.assistChipBorder(
-                    enabled = true,
-                    borderColor = if (sortMode == mode) primaryColor else BookColors.TextGray.copy(alpha = 0.2f),
-                    borderWidth = 1.dp
-                ),
-                modifier = Modifier
-                    .weight(1f) // 🌟 核心：4 个按钮每个占据 1 份权重，实现自动等宽适配
-                    .height(34.dp)
+                border = AssistChipDefaults.assistChipBorder(enabled = true, borderColor = if (sortMode == mode) primaryColor else tc.textSecondary.copy(alpha = 0.2f), borderWidth = 1.dp),
+                modifier = Modifier.weight(1f).height(34.dp)
             )
         }
     }
 }
+
+// 其余辅助函数 (StatCell, CategoryIcon, formatDateWithWeekday, formatTime, parseTimeOrMin) 保持不变
 @Composable
 private fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     Column(modifier = modifier, horizontalAlignment = Alignment.Start) {
-        Text(
-            text = value,
-            color = primaryColor,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 20.sp
-        )
+        Text(text = value, color = primaryColor, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp)
         Spacer(Modifier.size(4.dp))
-        Text(
-            text = label,
-            color = BookColors.TextGray,
-            fontSize = 12.sp,
-            lineHeight = 14.sp
-        )
+        Text(text = label, color = tc.textSecondary, fontSize = 12.sp, lineHeight = 14.sp)
     }
 }
 
@@ -375,13 +307,7 @@ private fun StatCell(value: String, label: String, modifier: Modifier = Modifier
 private fun CategoryIcon(categoryName: String, iconKey: String?) {
     val primaryColor = rememberThemePrimaryColor()
     val icon = categoryIconForIconKey(iconKey).takeIf { !iconKey.isNullOrBlank() } ?: categoryIconForName(categoryName)
-    Box(
-        Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(primaryColor.copy(alpha = 0.18f)),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(Modifier.size(36.dp).clip(CircleShape).background(primaryColor.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = primaryColor, modifier = Modifier.size(20.dp))
     }
 }
@@ -392,24 +318,16 @@ private fun formatDateWithWeekday(raw: String): String {
         val date = dt.toLocalDate()
         val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.CHINA)
         "${date.format(DateTimeFormatter.ISO_LOCAL_DATE)} $weekday"
-    } catch (_: Exception) {
-        raw
-    }
+    } catch (_: Exception) { raw }
 }
 
 private fun formatTime(raw: String): String {
     return try {
         val dt = LocalDateTime.parse(raw)
         dt.format(DateTimeFormatter.ofPattern("HH:mm"))
-    } catch (_: Exception) {
-        raw
-    }
+    } catch (_: Exception) { raw }
 }
 
 private fun parseTimeOrMin(raw: String): LocalDateTime {
-    return try {
-        LocalDateTime.parse(raw)
-    } catch (_: Exception) {
-        LocalDateTime.MIN
-    }
+    return try { LocalDateTime.parse(raw) } catch (_: Exception) { LocalDateTime.MIN }
 }

@@ -11,9 +11,9 @@
     </parent>
 
     <groupId>com.wyjqwy</groupId>
-    <artifactId>server</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>server</name>
+    <artifactId>wyjqwy</artifactId>
+    <version>0.0.1</version>
+    <name>wyjqwy</name>
     <description>Accounting backend service</description>
 
     <properties>

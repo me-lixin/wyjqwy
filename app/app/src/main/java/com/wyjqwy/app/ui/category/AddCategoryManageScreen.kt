@@ -45,9 +45,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.SubPageTopBar
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 
 sealed class CategoryManageSheetRequest {
     data class Add(val isExpense: Boolean) : CategoryManageSheetRequest()
@@ -72,6 +72,7 @@ fun AddCategoryManageDialog(
     onDismiss: () -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     val isEdit = request is CategoryManageSheetRequest.Edit
     val initialExpense = when (request) {
         is CategoryManageSheetRequest.Add -> request.isExpense
@@ -131,7 +132,7 @@ fun AddCategoryManageDialog(
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = BookColors.White
+            color = tc.surface
         ) {
             Column(
                 Modifier
@@ -183,7 +184,7 @@ fun AddCategoryManageDialog(
                     Icon(
                         imageVector = selectedSlot.icon,
                         contentDescription = null,
-                        tint = BookColors.TextBlack,
+                        tint = tc.textPrimary,
                         modifier = Modifier.size(44.dp)
                     )
                 }
@@ -199,24 +200,24 @@ fun AddCategoryManageDialog(
                     placeholder = {
                         Text(
                             "输入类别名称（不超过4个字符）",
-                            color = BookColors.TextGray,
+                            color = tc.textSecondary,
                             fontSize = 14.sp
                         )
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF0F0F0),
-                        unfocusedContainerColor = Color(0xFFF0F0F0),
-                        disabledContainerColor = Color(0xFFF0F0F0),
+                        focusedContainerColor = tc.surfaceMuted,
+                        unfocusedContainerColor = tc.surfaceMuted,
+                        disabledContainerColor = tc.surfaceMuted,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
-                        focusedTextColor = BookColors.TextBlack,
-                        unfocusedTextColor = BookColors.TextBlack,
-                        cursorColor = BookColors.TextBlack,
-                        focusedPlaceholderColor = BookColors.TextGray,
-                        unfocusedPlaceholderColor = BookColors.TextGray
+                        focusedTextColor = tc.textPrimary,
+                        unfocusedTextColor = tc.textPrimary,
+                        cursorColor = tc.textPrimary,
+                        focusedPlaceholderColor = tc.textSecondary,
+                        unfocusedPlaceholderColor = tc.textSecondary
                     )
                 )
 
@@ -225,7 +226,7 @@ fun AddCategoryManageDialog(
                 if (!state.loading && state.message.startsWith("请求失败")) {
                     Text(
                         text = state.message,
-                        color = BookColors.RedExpense,
+                        color = tc.expense,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
@@ -234,7 +235,7 @@ fun AddCategoryManageDialog(
                 if (localError.isNotBlank()) {
                     Text(
                         text = localError,
-                        color = BookColors.RedExpense,
+                        color = tc.expense,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
@@ -257,7 +258,7 @@ fun AddCategoryManageDialog(
                                     .padding(vertical = 8.dp),
                                 textAlign = TextAlign.Center,
                                 fontSize = 13.sp,
-                                color = BookColors.TextGray,
+                                color = tc.textSecondary,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -281,7 +282,7 @@ fun AddCategoryManageDialog(
                                                 if (slot.iconKey == selectedSlot.iconKey) {
                                                     primaryColor
                                                 } else {
-                                                    BookColors.CategoryGridCircle
+                                                    tc.categoryGridCircle
                                                 }
                                             )
                                             .clickable {
@@ -292,7 +293,7 @@ fun AddCategoryManageDialog(
                                         Icon(
                                             imageVector = slot.icon,
                                             contentDescription = slot.iconKey,
-                                            tint = if (slot.iconKey == selectedSlot.iconKey) BookColors.White else BookColors.CategoryGridIcon,
+                                            tint = if (slot.iconKey == selectedSlot.iconKey) Color.White else tc.categoryGridIcon,
                                             modifier = Modifier.size(26.dp)
                                         )
                                     }
@@ -324,6 +325,7 @@ private fun AddCategoryTopBar(
     canSubmit: Boolean
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -340,7 +342,7 @@ private fun AddCategoryTopBar(
                 ) {
                     Text(
                         text = "完成",
-                        color = if (canSubmit) primaryColor else BookColors.TextGray,
+                        color = if (canSubmit) primaryColor else tc.textSecondary,
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -359,10 +361,10 @@ private fun AddCategoryTopBar(
             fontSize = 17.sp,
             fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Normal,
             color = when {
-                !typeSwitchEnabled && isExpense -> BookColors.TextBlack
-                !typeSwitchEnabled -> BookColors.TextGray.copy(alpha = 0.45f)
-                isExpense -> BookColors.TextBlack
-                else -> BookColors.TextGray
+                !typeSwitchEnabled && isExpense -> tc.textPrimary
+                !typeSwitchEnabled -> tc.textSecondary.copy(alpha = 0.45f)
+                isExpense -> tc.textPrimary
+                else -> tc.textSecondary
             },
             modifier = Modifier
                 .clickable(enabled = typeSwitchEnabled, onClick = onExpenseClick)
@@ -373,10 +375,10 @@ private fun AddCategoryTopBar(
             fontSize = 17.sp,
             fontWeight = if (!isExpense) FontWeight.Bold else FontWeight.Normal,
             color = when {
-                !typeSwitchEnabled && !isExpense -> BookColors.TextBlack
-                !typeSwitchEnabled -> BookColors.TextGray.copy(alpha = 0.45f)
-                !isExpense -> BookColors.TextBlack
-                else -> BookColors.TextGray
+                !typeSwitchEnabled && !isExpense -> tc.textPrimary
+                !typeSwitchEnabled -> tc.textSecondary.copy(alpha = 0.45f)
+                !isExpense -> tc.textPrimary
+                else -> tc.textSecondary
             },
             modifier = Modifier
                 .clickable(enabled = typeSwitchEnabled, onClick = onIncomeClick)

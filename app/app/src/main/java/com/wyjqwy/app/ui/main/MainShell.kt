@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.material3.contentColorFor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -42,11 +43,12 @@ import com.wyjqwy.app.ui.detail.DetailScreen
 import com.wyjqwy.app.ui.invest.AutoInvestNoteDetailScreen
 import com.wyjqwy.app.ui.invest.AutoInvestScreen
 import com.wyjqwy.app.ui.search.SearchScreen
+import com.wyjqwy.app.ui.stats.CategorySortMode
 import com.wyjqwy.app.ui.stats.CategoryStatsScreen
 import com.wyjqwy.app.ui.stats.StatsDashboardScreen
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.DressUpScreen
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
@@ -55,14 +57,15 @@ import kotlin.math.sqrt
 @Composable
 fun TruncatedText(
     text: String,
-    color: Color = BookColors.TextBlack,
+    color: Color? = null,
     fontSize: androidx.compose.ui.unit.TextUnit = 12.sp,
     fontWeight: FontWeight = FontWeight.Normal,
     modifier: Modifier = Modifier
 ) {
+    val tc = themeColors()
     Text(
         text = text,
-        color = color,
+        color = color ?: tc.textPrimary,
         fontSize = fontSize,
         fontWeight = fontWeight,
         maxLines = 1,
@@ -75,6 +78,8 @@ fun TruncatedText(
 fun MainShell(state: AppUiState, vm: AppViewModel) {
     val context = LocalContext.current
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     var tab by remember { mutableIntStateOf(0) }
     var showCategoryPicker by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
@@ -82,7 +87,7 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
     var showMineLogin by remember { mutableStateOf(false) }
     var showMineAccountSettings by remember { mutableStateOf(false) }
     var mineProfileRefreshTick by remember { mutableIntStateOf(0) }
-    var mineFeaturePlaceholderTitle by remember { mutableStateOf<String?>(null) }
+    var mineBillImportExport by remember { mutableStateOf<MineImportExportMode?>(null) }
     var showDressUp by remember { mutableStateOf(false) }
     var editingTx by remember { mutableStateOf<TransactionItem?>(null) }
     var statsTx by remember { mutableStateOf<TransactionItem?>(null) }
@@ -129,11 +134,14 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
 
     val detailListState = rememberLazyListState()
     val chartListState = rememberLazyListState()
+    val categoryStatsListState = rememberLazyListState()
     val autoInvestListState = rememberLazyListState()
     val autoInvestDetailListState = rememberLazyListState()
+    var categoryStatsSortMode by remember { mutableStateOf(CategorySortMode.TIME_DESC) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val hasSubPage = showSearch || showCalendar || showMineLogin ||
-            mineFeaturePlaceholderTitle != null || showDressUp ||
+            mineBillImportExport != null || showDressUp ||
             showCategoryPicker || statsTx != null || investNoteKey != null ||
             showMineAccountSettings
     var lastExitGestureAt by remember { mutableLongStateOf(0L) }
@@ -151,7 +159,7 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
             showCalendar -> showCalendar = false
             showMineLogin -> showMineLogin = false
             showMineAccountSettings -> showMineAccountSettings = false
-            mineFeaturePlaceholderTitle != null -> mineFeaturePlaceholderTitle = null
+            mineBillImportExport != null -> mineBillImportExport = null
             showDressUp -> showDressUp = false
         }
     }
@@ -165,9 +173,16 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
         }
     }
 
+    LaunchedEffect(state.message) {
+        if (state.message == "最多添加15个模板") {
+            snackbarHostState.showSnackbar(state.message)
+            vm.clearUiMessage()
+        }
+    }
+
     // ... (中间页面跳转逻辑保持原样)
     if (showSearch) { SearchScreen(vm = vm, amountVisible = state.amountVisible, onBack = { showSearch = false }, onEditTransaction = { tx -> editingTx = tx; showSearch = false; showCategoryPicker = true }, onDeleteTransaction = { tx -> vm.deleteTransaction(tx.id) }); return }
-    if (showCalendar) { DetailCalendarScreen(state = state, onLoadMonth = { ym -> if (ym != state.selectedYearMonth) vm.loadTransactionsForMonth(ym) }, onBack = { showCalendar = false }, onEditTransaction = { tx -> editingTx = tx; showCalendar = false; showCategoryPicker = true }, onOpenCategoryStats = { tx -> showCalendar = false; statsScopedTransactions = null; statsLoading = false; statsTx = tx }); return }
+    if (showCalendar) { DetailCalendarScreen(state = state, onLoadMonth = { ym -> if (ym != state.selectedYearMonth) vm.loadTransactionsForMonth(ym) }, onBack = { showCalendar = false }, onEditTransaction = { tx -> editingTx = tx; showCalendar = false; showCategoryPicker = true }, onOpenCategoryStats = { tx -> showCalendar = false; statsScopedTransactions = null; statsLoading = false; categoryStatsSortMode = CategorySortMode.TIME_DESC; scope.launch { categoryStatsListState.scrollToItem(0) }; statsTx = tx }); return }
     if (showMineLogin) { LaunchedEffect(state.loggedIn) { if (state.loggedIn) showMineLogin = false }; BookkeepingLoginScreen(state = state, vm = vm, onBack = { showMineLogin = false }); return }
     if (showMineAccountSettings) {
         MineAccountSettingsScreen(
@@ -179,7 +194,19 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
         )
         return
     }
-    mineFeaturePlaceholderTitle?.let { title -> MineFeaturePlaceholderScreen(title = title, onBack = { mineFeaturePlaceholderTitle = null }); return }
+    mineBillImportExport?.let { mode ->
+        MineImportExportScreen(
+            mode = mode,
+            state = state,
+            vm = vm,
+            onBack = { mineBillImportExport = null },
+            onNeedLogin = {
+                mineBillImportExport = null
+                showMineLogin = true
+            }
+        )
+        return
+    }
     if (showDressUp) { DressUpScreen(onBack = { showDressUp = false }); return }
     if (showCategoryPicker) { CategoryPickerScreen(state = state, vm = vm, initialTransaction = editingTx, onBack = { showCategoryPicker = false; editingTx = null }); return }
     statsTx?.let { tx ->
@@ -187,6 +214,9 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
             state = state,
             vm = vm,
             seedTx = tx,
+            sortMode = categoryStatsSortMode,
+            onSortModeChange = { categoryStatsSortMode = it },
+            listState = categoryStatsListState,
             scopedTransactions = statsScopedTransactions,
             loading = statsLoading,
             onBack = {
@@ -201,7 +231,7 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = BookColors.Background,
+            containerColor = tc.background,
             contentWindowInsets = WindowInsets.navigationBars,
             bottomBar = {
                 SharkBottomBar(
@@ -225,7 +255,7 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
         ) { innerPadding ->
             Box(Modifier.fillMaxSize().padding(innerPadding)) {
                 when (tab) {
-                    0 -> DetailScreen(state = state, vm = vm, onOpenSearch = { showSearch = true }, onOpenCalendar = { showCalendar = true }, onOpenEditTransaction = { tx -> editingTx = tx; showCategoryPicker = true }, onOpenCategoryStats = { tx -> statsScopedTransactions = null; statsLoading = false; statsTx = tx }, listState = detailListState)
+                    0 -> DetailScreen(state = state, vm = vm, onOpenSearch = { showSearch = true }, onOpenCalendar = { showCalendar = true }, onOpenEditTransaction = { tx -> editingTx = tx; showCategoryPicker = true }, onOpenCategoryStats = { tx -> statsScopedTransactions = null; statsLoading = false; categoryStatsSortMode = CategorySortMode.TIME_DESC; scope.launch { categoryStatsListState.scrollToItem(0) }; statsTx = tx }, listState = detailListState)
                     1 -> StatsDashboardScreen(
                         vm = vm,
                         rankListState = chartListState,
@@ -251,13 +281,13 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                         state = state,
                         vm = vm,
                         onOpenLoginRegister = { showMineLogin = true },
-                        onOpenImport = { mineFeaturePlaceholderTitle = "导入数据" },
-                        onOpenExport = { mineFeaturePlaceholderTitle = "导出数据" },
+                        onOpenImport = { mineBillImportExport = MineImportExportMode.Import },
+                        onOpenExport = { mineBillImportExport = MineImportExportMode.Export },
                         onOpenDressUp = { showDressUp = true },
                         onOpenAccountSettings = { showMineAccountSettings = true },
                         profileRefreshTick = mineProfileRefreshTick
                     )
-                    else -> DetailScreen(state = state, vm = vm, onOpenSearch = { showSearch = true }, onOpenCalendar = { showCalendar = true }, onOpenEditTransaction = { tx -> editingTx = tx; showCategoryPicker = true }, onOpenCategoryStats = { tx -> statsScopedTransactions = null; statsLoading = false; statsTx = tx }, listState = detailListState)
+                    else -> DetailScreen(state = state, vm = vm, onOpenSearch = { showSearch = true }, onOpenCalendar = { showCalendar = true }, onOpenEditTransaction = { tx -> editingTx = tx; showCategoryPicker = true }, onOpenCategoryStats = { tx -> statsScopedTransactions = null; statsLoading = false; categoryStatsSortMode = CategorySortMode.TIME_DESC; scope.launch { categoryStatsListState.scrollToItem(0) }; statsTx = tx }, listState = detailListState)
                 }
             }
         }
@@ -304,7 +334,7 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                         .padding(horizontal = 40.dp)
                         .shadow(12.dp, RoundedCornerShape(20.dp))
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White)
+                        .background(tc.surface)
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -329,18 +359,25 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                         value = voiceInputText,
                         onValueChange = { voiceInputText = it },
                         modifier = Modifier.fillMaxWidth().focusRequester(voiceInputFocusRequester),
-                        placeholder = { Text("例:吃晚饭50元", color = Color.Gray, fontSize = 12.sp) },
+                        placeholder = { Text("例:吃晚饭50元", color = tc.textSecondary, fontSize = 12.sp) },
                         maxLines = 2,
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 14.sp,
+                            color = tc.textPrimary
+                        ),
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF8F8F8),
-                            unfocusedContainerColor = Color(0xFFF8F8F8),
+                            focusedTextColor = tc.textPrimary,
+                            unfocusedTextColor = tc.textPrimary,
+                            focusedContainerColor = tc.surfaceMuted,
+                            unfocusedContainerColor = tc.surfaceMuted,
                             focusedBorderColor = primaryColor,
-                            unfocusedBorderColor = Color.Transparent,
-                            cursorColor = primaryColor
+                            unfocusedBorderColor = tc.divider.copy(alpha = 0.35f),
+                            cursorColor = primaryColor,
+                            focusedPlaceholderColor = tc.textSecondary,
+                            unfocusedPlaceholderColor = tc.textSecondary
                         )
                     )
 
@@ -354,10 +391,13 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                             onClick = { voiceModeVisible = false; keyboardController?.hide() },
                             modifier = Modifier.weight(1f).height(40.dp),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF2F2F2), contentColor = Color.Gray)
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = tc.surfaceMuted,
+                                contentColor = tc.textSecondary
+                            )
                         ) {
                             // 按钮：保留4字
-                            TruncatedText("取消", fontSize = 13.sp, color = Color.Gray)
+                            TruncatedText("取消", fontSize = 13.sp, color = tc.textSecondary)
                         }
                         Button(
                             onClick = {
@@ -384,14 +424,23 @@ fun MainShell(state: AppUiState, vm: AppViewModel) {
                             },
                             modifier = Modifier.weight(1f).height(40.dp),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryColor,
+                                contentColor = onPrimary
+                            )
                         ) {
                             // 按钮：保留4字
-                            TruncatedText("发送", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            TruncatedText("发送", fontSize = 13.sp, color = onPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 92.dp)
+        )
     }
 }

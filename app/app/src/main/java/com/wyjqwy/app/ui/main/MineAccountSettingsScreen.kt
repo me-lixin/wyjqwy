@@ -38,6 +38,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,9 +58,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.SubPageTopBar
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import java.io.File
 import java.io.FileOutputStream
 
@@ -106,6 +107,8 @@ fun MineAccountSettingsScreen(
 ) {
     val context = LocalContext.current
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     var profile by remember(loginPhone) { mutableStateOf(loadProfileByPhone(context, loginPhone)) }
     var showAvatarAction by remember { mutableStateOf(false) }
     var showAvatarCrop by remember { mutableStateOf(false) }
@@ -235,7 +238,7 @@ fun MineAccountSettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BookColors.Background)
+            .background(tc.background)
     ) {
         Box(
             modifier = Modifier
@@ -244,13 +247,13 @@ fun MineAccountSettingsScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            SubPageTopBar(title = "账号设置", onBack = onBack)
+            SubPageTopBar(title = "账号设置", onBack = onBack, contentColor = onPrimary)
         }
         Spacer(Modifier.height(10.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(BookColors.White)
+                .background(tc.surface)
         ) {
             AccountSettingRow(
                 title = "头像",
@@ -262,7 +265,7 @@ fun MineAccountSettingsScreen(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(BookColors.Line),
+                            .background(tc.divider),
                         contentAlignment = Alignment.Center
                     ) {
                         if (avatarBitmap != null) {
@@ -275,20 +278,20 @@ fun MineAccountSettingsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Person,
                                 contentDescription = "默认头像",
-                                tint = BookColors.TextGray,
+                                tint = tc.textSecondary,
                                 modifier = Modifier.size(34.dp)
                             )
                         }
                     }
                 }
             )
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             AccountSettingRow(
                 title = "手机号",
                 value = if (loginPhone.isBlank()) "未登录" else loginPhone,
                 enabled = false
             )
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             AccountSettingRow(
                 title = "昵称",
                 value = profile.nickname.ifBlank { "未设置" },
@@ -297,7 +300,7 @@ fun MineAccountSettingsScreen(
                     showNicknameEditor = true
                 }
             )
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             AccountSettingRow(
                 title = "性别",
                 value = profile.gender.ifBlank { "未填写" },
@@ -315,6 +318,7 @@ private fun AccountSettingRow(
     onClick: (() -> Unit)? = null,
     valueContent: (@Composable () -> Unit)? = null
 ) {
+    val tc = themeColors()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -324,7 +328,7 @@ private fun AccountSettingRow(
     ) {
         Text(
             text = title,
-            color = BookColors.TextBlack,
+            color = tc.textPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium
         )
@@ -334,7 +338,7 @@ private fun AccountSettingRow(
         } else {
             Text(
                 text = value,
-                color = BookColors.TextGray,
+                    color = tc.textSecondary,
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -342,7 +346,7 @@ private fun AccountSettingRow(
             Icon(
                 imageVector = Icons.Outlined.KeyboardArrowRight,
                 contentDescription = null,
-                tint = BookColors.TextGray,
+                tint = tc.textSecondary,
                 modifier = Modifier.padding(start = 4.dp)
             )
         }
@@ -392,6 +396,7 @@ private fun AvatarCropDialog(
     onCancel: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
+    val tc = themeColors()
     var scale by remember(source) { mutableStateOf(1f) }
     var offset by remember(source) { mutableStateOf(Offset.Zero) }
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
@@ -405,7 +410,7 @@ private fun AvatarCropDialog(
                     modifier = Modifier
                         .size(260.dp)
                         .clip(CircleShape)
-                        .background(BookColors.Line)
+                        .background(tc.divider)
                         .onSizeChanged { viewportSize = it }
                         .pointerInput(source, scale) {
                             detectDragGestures { change, dragAmount ->
@@ -429,7 +434,7 @@ private fun AvatarCropDialog(
                             }
                     )
                 }
-                Text("拖动调整位置，滑动缩放", color = BookColors.TextGray)
+                Text("拖动调整位置，滑动缩放", color = tc.textSecondary)
                 Slider(
                     value = scale,
                     onValueChange = { scale = it },

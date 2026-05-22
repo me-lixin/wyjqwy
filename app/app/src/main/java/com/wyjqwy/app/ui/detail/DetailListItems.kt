@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.format.DateTimeFormatter
 
@@ -36,6 +36,7 @@ internal fun TransactionRow(
     onClick: () -> Unit,
     onCategoryIconClick: () -> Unit
 ) {
+    val tc = themeColors()
     val title = if (!tx.note.isNullOrBlank()) tx.note else tx.categoryName
     val timeText = formatOccurredAt(tx.occurredAt)
     Row(
@@ -63,7 +64,7 @@ internal fun TransactionRow(
         }
         val income = tx.type == 2
         val prefix = if (income) "+" else "-"
-        val color = if (income) androidx.compose.ui.graphics.Color(0xFF2E7D32) else BookColors.RedExpense
+        val color = if (income) tc.income else tc.expense
         Text(
             text = if (amountVisible) "$prefix${tx.amount.toAmountText()}" else "****",
             color = color,

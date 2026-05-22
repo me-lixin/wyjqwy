@@ -43,8 +43,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wyjqwy.app.ui.theme.BookColors
+import androidx.compose.ui.graphics.Color
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 
 private data class BottomTab(
     val index: Int,
@@ -63,6 +64,7 @@ fun SharkBottomBar(
     onVoiceGestureMove: (Offset) -> Unit,
     onVoiceGestureEnd: () -> Unit
 ) {
+    val tc = themeColors()
     val primaryColor = rememberThemePrimaryColor()
     val currentOnVoiceStart by rememberUpdatedState(onVoiceGestureStart)
     val currentOnVoiceMove by rememberUpdatedState(onVoiceGestureMove)
@@ -79,9 +81,9 @@ fun SharkBottomBar(
     Column(
         Modifier
             .fillMaxWidth()
-            .background(BookColors.White)
+            .background(tc.surface)
     ) {
-        HorizontalDivider(color = BookColors.TabBarTopLine, thickness = 1.dp)
+        HorizontalDivider(color = tc.tabBarDivider, thickness = 1.dp)
         Row(
             Modifier
                 .fillMaxWidth()
@@ -132,14 +134,14 @@ fun SharkBottomBar(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.label,
-                                tint = BookColors.White,
+                                tint = Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
                         Text(
                             text = tab.label,
                             fontSize = 10.sp,
-                            color = BookColors.TextGray,
+                            color = tc.textSecondary,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 14.dp)
@@ -158,14 +160,14 @@ fun SharkBottomBar(
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = tab.label,
-                            tint = if (selected) primaryColor else BookColors.TextGray,
+                            tint = if (selected) primaryColor else tc.textSecondary,
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = tab.label,
                             fontSize = 10.sp,
-                            color = if (selected) primaryColor else BookColors.TextGray,
+                            color = if (selected) primaryColor else tc.textSecondary,
                             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
                         )
                     }

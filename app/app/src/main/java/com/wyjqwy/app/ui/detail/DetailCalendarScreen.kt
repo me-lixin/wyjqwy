@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,9 +41,9 @@ import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.SubPageTopBar
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -66,6 +67,8 @@ fun DetailCalendarScreen(
     onOpenCategoryStats: (TransactionItem) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     var showingMonth by remember { mutableStateOf(state.selectedYearMonth) }
     val today = remember { LocalDate.now() }
 
@@ -114,10 +117,11 @@ fun DetailCalendarScreen(
             SubPageTopBar(
                 title = "日历",
                 onBack = onBack,
+                contentColor = onPrimary,
                 trailingContent = {
                     Text(
                         text = "今天",
-                        color = BookColors.TextBlack,
+                        color = onPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.clickable {
                             showingMonth = YearMonth.now()
@@ -138,7 +142,7 @@ fun DetailCalendarScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BookColors.White)
+                    colors = CardDefaults.cardColors(containerColor = tc.surface)
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Row(
@@ -152,7 +156,7 @@ fun DetailCalendarScreen(
                             Text(
                                 text = "${showingMonth.year}年${showingMonth.monthValue}月",
                                 style = MaterialTheme.typography.titleLarge,
-                                color = BookColors.TextBlack
+                                color = tc.textPrimary
                             )
                             IconButton(onClick = { showingMonth = showingMonth.plusMonths(1) }) {
                                 Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = "下个月", tint = primaryColor)
@@ -161,7 +165,7 @@ fun DetailCalendarScreen(
                         Spacer(Modifier.size(4.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").forEach { w ->
-                                Text(text = w, color = BookColors.TextGray, fontSize = 12.sp)
+                                Text(text = w, color = tc.textSecondary, fontSize = 12.sp)
                             }
                         }
                         Spacer(Modifier.size(6.dp))
@@ -187,7 +191,7 @@ fun DetailCalendarScreen(
                                                     when {
                                                         selected -> primaryColor
                                                         cell.date == today -> primaryColor.copy(alpha = 0.18f)
-                                                        else -> BookColors.White
+                                                        else -> tc.surface
                                                     },
                                                     CircleShape
                                                 ),
@@ -196,9 +200,9 @@ fun DetailCalendarScreen(
                                             Text(
                                                 text = cell.date.dayOfMonth.toString(),
                                                 color = when {
-                                                    selected -> BookColors.White
-                                                    cell.inCurrentMonth -> BookColors.TextBlack
-                                                    else -> BookColors.TextGray.copy(alpha = 0.4f)
+                                                    selected -> tc.surface
+                                                    cell.inCurrentMonth -> tc.textPrimary
+                                                    else -> tc.textSecondary.copy(alpha = 0.4f)
                                                 },
                                                 fontSize = 16.sp
                                             )
@@ -206,12 +210,12 @@ fun DetailCalendarScreen(
                                         Spacer(Modifier.size(2.dp))
                                         Text(
                                             text = if (cell.incomeAmount > 0.0) "收 ${formatCompactAmount(cell.incomeAmount)}" else "",
-                                            color = androidx.compose.ui.graphics.Color(0xFF2E7D32),
+                                            color = tc.income,
                                             fontSize = 10.sp
                                         )
                                         Text(
                                             text = if (cell.expenseAmount > 0.0) "支 ${formatCompactAmount(cell.expenseAmount)}" else "",
-                                            color = BookColors.RedExpense,
+                                            color = tc.expense,
                                             fontSize = 10.sp
                                         )
                                     }
@@ -229,7 +233,7 @@ fun DetailCalendarScreen(
                             .padding(vertical = 36.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("该日期暂无明细", color = BookColors.TextGray)
+                        Text("该日期暂无明细", color = tc.textSecondary)
                     }
                 }
             } else {
@@ -259,6 +263,7 @@ private fun CalendarTransactionRow(
     onEdit: () -> Unit,
     onCategoryClick: () -> Unit
 ) {
+    val tc = themeColors()
     val title = if (!tx.note.isNullOrBlank()) tx.note else tx.categoryName
     val timeText = tx.parsedOccurredAt?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: tx.occurredAt
     val primaryColor = rememberThemePrimaryColor()
@@ -289,7 +294,7 @@ private fun CalendarTransactionRow(
         }
         val income = tx.type == 2
         val prefix = if (income) "+" else "-"
-        val color = if (income) androidx.compose.ui.graphics.Color(0xFF2E7D32) else BookColors.RedExpense
+        val color = if (income) tc.income else tc.expense
         Text(
             text = if (amountVisible) "$prefix${abs(tx.amount).toAmountText()}" else "****",
             color = color,

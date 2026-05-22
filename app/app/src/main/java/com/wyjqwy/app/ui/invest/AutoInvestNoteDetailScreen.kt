@@ -32,8 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -49,6 +49,7 @@ fun AutoInvestNoteDetailScreen(
     onEditTransaction: (TransactionItem) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     val state by vm.autoInvest.collectAsState()
     val all = remember(state.yearTransactions) {
         state.yearTransactions.values.flatten()
@@ -76,22 +77,22 @@ fun AutoInvestNoteDetailScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = BookColors.TextBlack)
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = tc.textPrimary)
             }
             Text(
                 text = noteDisplayName,
-                color = BookColors.TextBlack,
+                color = tc.textPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
         }
 
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text("共 ${txList.size} 笔", color = BookColors.TextGray, fontSize = 13.sp)
+            Text("共 ${txList.size} 笔", color = tc.textSecondary, fontSize = 13.sp)
             Spacer(Modifier.size(4.dp))
-            Text("总金额 ¥${total.toAmountText()}", color = BookColors.TextBlack, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text("总金额 ¥${total.toAmountText()}", color = tc.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         }
-        HorizontalDivider(color = BookColors.Line)
+        HorizontalDivider(color = tc.divider)
 
         if (txList.isEmpty()) {
             Column(
@@ -99,7 +100,7 @@ fun AutoInvestNoteDetailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("该备注下暂无明细", color = BookColors.TextGray)
+                Text("该备注下暂无明细", color = tc.textSecondary)
             }
             return@Column
         }
@@ -117,24 +118,24 @@ fun AutoInvestNoteDetailScreen(
                     Column(Modifier.weight(1f)) {
                         Text(
                             text = tx.categoryName,
-                            color = BookColors.TextBlack,
+                            color = tc.textPrimary,
                             fontSize = 14.sp
                         )
                         Spacer(Modifier.size(2.dp))
                         Text(
                             text = tx.parsedOccurredAt?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) ?: tx.occurredAt,
-                            color = BookColors.TextGray,
+                            color = tc.textSecondary,
                             fontSize = 12.sp
                         )
                     }
                     Text(
                         text = "-${abs(tx.amount).toAmountText()}",
-                        color = BookColors.RedExpense,
+                        color = tc.expense,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
-                HorizontalDivider(color = BookColors.Line)
+                HorizontalDivider(color = tc.divider)
             }
         }
     }

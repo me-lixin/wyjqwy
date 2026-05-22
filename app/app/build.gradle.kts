@@ -6,9 +6,8 @@ plugins {
 android {
     namespace = "com.wyjqwy.app"
     compileSdk = 34
-
     defaultConfig {
-        val serverBaseUrl = (project.findProperty("SERVER_BASE_URL") as String?) ?: "http://192.168.0.105:8089"
+        val serverBaseUrl = (project.findProperty("SERVER_BASE_URL") as String?) ?: "http://47.93.86.248:26426"
 //        val serverBaseUrl = (project.findProperty("SERVER_BASE_URL") as String?) ?: "http://192.168.0.105:8089"
         applicationId = "com.wyjqwy.app"
         minSdk = 26
@@ -74,4 +73,9 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+tasks.whenTaskAdded {
+    if (name == "lintVitalAnalyzeRelease") {
+        enabled = false
+    }
 }

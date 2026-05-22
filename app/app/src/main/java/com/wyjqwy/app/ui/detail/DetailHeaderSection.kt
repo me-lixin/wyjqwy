@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,8 +61,8 @@ import com.wyjqwy.app.data.TemplateItem
 import kotlin.math.roundToInt
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.YearMonth
 import com.wyjqwy.app.R
@@ -87,6 +88,8 @@ internal fun DetailHeaderSection(
     modifier: Modifier = Modifier
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     Box(
         modifier
             .fillMaxWidth()
@@ -96,7 +99,7 @@ internal fun DetailHeaderSection(
                     // 0.0f 是顶部，1.0f 是底部
                     0.0f to primaryColor,   // 从顶部开始是主题色
                     0.8f to primaryColor,   // 保持主题色一直到 60% 的高度（这就相当于把“渐变的开始”往下推了）
-                    1.0f to Color.White     // 从 60% 到 100% 的区域发生渐变，最终变成白色
+                    1.0f to tc.surface      // 深色模式下底部不再写死白色
                 )
             )
     ) {
@@ -112,7 +115,7 @@ internal fun DetailHeaderSection(
                     Icon(
                         imageVector = if (amountVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                         contentDescription = "显示或隐藏金额",
-                        tint = BookColors.TextBlack
+                        tint = onPrimary
                     )
                 }
                 Row(
@@ -124,7 +127,7 @@ internal fun DetailHeaderSection(
                         Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(BookColors.White.copy(alpha = 0.35f)),
+                            .background(onPrimary.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
@@ -138,16 +141,16 @@ internal fun DetailHeaderSection(
                     Spacer(Modifier.size(8.dp))
                     Text(
                         text = appTitle,
-                        color = BookColors.TextBlack,
+                        color = onPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
                 IconButton(onClick = onOpenCalendar) {
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = "日历", tint = BookColors.TextBlack)
+                    Icon(Icons.Outlined.CalendarMonth, contentDescription = "日历", tint = onPrimary)
                 }
                 IconButton(onClick = onOpenSearch) {
-                    Icon(Icons.Outlined.Search, contentDescription = "搜索", tint = BookColors.TextBlack)
+                    Icon(Icons.Outlined.Search, contentDescription = "搜索", tint = onPrimary)
                 }
             }
 
@@ -164,18 +167,18 @@ internal fun DetailHeaderSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("${selectedYearMonth.year}年", color = BookColors.TextBlack, fontSize = 13.sp)
+                        Text("${selectedYearMonth.year}年", color = onPrimary, fontSize = 13.sp)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 String.format("%02d月", selectedYearMonth.monthValue),
-                                color = BookColors.TextBlack,
+                                color = onPrimary,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Light
                             )
                             Icon(
                                 Icons.Outlined.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = BookColors.TextBlack,
+                                tint = onPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(10.dp))
@@ -183,15 +186,15 @@ internal fun DetailHeaderSection(
                                 modifier = Modifier
                                     .height(30.dp) // 控制分割线高度
                                     .width(1.dp)   // 线宽
-                                    .background(BookColors.TextBlack.copy(alpha = 0.2f)) // 颜色和透明度
+                                    .background(onPrimary.copy(alpha = 0.22f)) // 颜色和透明度
                             )
 
                         }
                     }
                 }
 
-                SummaryStat("收入", totalIncome, amountVisible, BookColors.TextBlack, Modifier.weight(1f))
-                SummaryStat("支出", totalExpense, amountVisible, BookColors.TextBlack, Modifier.weight(1f))
+                SummaryStat("收入", totalIncome, amountVisible, onPrimary, Modifier.weight(1f))
+                SummaryStat("支出", totalExpense, amountVisible, onPrimary, Modifier.weight(1f))
             }
             TemplateQuickBar(
                 templates = templates,
@@ -245,7 +248,7 @@ private fun TemplateQuickBar(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(templates.take(12), key = { it.id }) { item ->
+                    items(templates.take(15), key = { it.id }) { item ->
                         DraggableTemplateItem(
                             item = item,
                             templateAreaInWindow = templateAreaInWindow,
@@ -270,6 +273,7 @@ private fun DraggableTemplateItem(
     onDelete: () -> Unit,
     onDragActiveChanged: (Boolean) -> Unit
 ) {
+    val tc = themeColors()
     var drag by remember(item.id) { mutableStateOf(Offset.Zero) }
     val itemCoordsRef = remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
     val areaState = rememberUpdatedState(newValue = templateAreaInWindow)
@@ -278,7 +282,7 @@ private fun DraggableTemplateItem(
     val label = compactTemplateLabel(item.note?.takeIf { it.isNotBlank() } ?: item.categoryName)
     val amountText = if (item.type == 2) "+${(item.amount ?: 0.0).toAmountText()}"
     else "-${(item.amount ?: 0.0).toAmountText()}"
-    val amountColor = if (item.type == 2) androidx.compose.ui.graphics.Color(0xFF2E7D32) else BookColors.RedExpense
+    val amountColor = if (item.type == 2) tc.income else tc.expense
 
     val dragging = drag != Offset.Zero
     Box(
@@ -383,8 +387,9 @@ private fun SummaryStat(
     valueColor: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier
 ) {
+    val tc = themeColors()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = BookColors.TextBlack, fontSize = 14.sp)
+        Text(label, color = tc.textPrimary, fontSize = 14.sp)
         Spacer(Modifier.height(2.dp))
         Text(
             text = if (visible) value.toAmountText() else "****",

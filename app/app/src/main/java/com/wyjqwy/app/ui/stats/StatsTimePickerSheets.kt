@@ -15,6 +15,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,8 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import java.time.LocalDate
 import java.time.temporal.WeekFields
 
@@ -64,7 +65,8 @@ fun YearOnlyPickerSheet(
                 rowCount = 5, // 👈 修复点：明确告诉组件显示 5 行
                 startIndex = yearRange.indexOf(finalYear).coerceAtLeast(0),
                 onScrollFinished = { snappedIndex ->
-                    finalYear = yearRange[snappedIndex]
+                        val safeIndex = snappedIndex.coerceIn(0, yearRange.lastIndex)
+                        finalYear = yearRange[safeIndex]
                     return@WheelTextPicker null
                 }
             )
@@ -80,6 +82,7 @@ fun YearMonthPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit
 ) {
+    val tc = themeColors()
     val monthsStr = remember { (1..12).map { "${it}月" } }
     var finalMonth by remember { mutableIntStateOf(initialMonth) }
 
@@ -102,7 +105,7 @@ fun YearMonthPickerSheet(
             ) {
                 Text(
                     text = "${selectedYear}年",
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -117,7 +120,8 @@ fun YearMonthPickerSheet(
                     rowCount = 5, // 👈 修复点：明确告诉组件显示 5 行
                     startIndex = (finalMonth - 1).coerceIn(0, 11),
                     onScrollFinished = { snappedIndex ->
-                        finalMonth = snappedIndex + 1
+                        val safeIndex = snappedIndex.coerceIn(0, monthsStr.lastIndex)
+                        finalMonth = safeIndex + 1
                         return@WheelTextPicker null
                     }
                 )
@@ -134,6 +138,7 @@ fun YearWeekPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit
 ) {
+    val tc = themeColors()
     val weekField = WeekFields.ISO.weekOfWeekBasedYear()
     val maxWeek = remember(selectedYear) { LocalDate.of(selectedYear, 12, 28).get(weekField) }
     val weeksStr = remember(maxWeek) { (1..maxWeek).map { "第${it}周" } }
@@ -158,7 +163,7 @@ fun YearWeekPickerSheet(
             ) {
                 Text(
                     text = "${selectedYear}年",
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -173,7 +178,8 @@ fun YearWeekPickerSheet(
                     rowCount = 5, // 👈 修复点：明确告诉组件显示 5 行
                     startIndex = (finalWeek - 1).coerceIn(0, maxWeek - 1),
                     onScrollFinished = { snappedIndex ->
-                        finalWeek = snappedIndex + 1
+                        val safeIndex = snappedIndex.coerceIn(0, weeksStr.lastIndex)
+                        finalWeek = safeIndex + 1
                         return@WheelTextPicker null
                     }
                 )
@@ -192,10 +198,12 @@ private fun StatsPickerSheetFrame(
     content: @Composable () -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BookColors.White,
+        containerColor = tc.surface,
         dragHandle = null
     ) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 20.dp)) {
@@ -204,11 +212,11 @@ private fun StatsPickerSheetFrame(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) { Text("取消", color = primaryColor) }
-                Text(title, color = BookColors.TextBlack, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onConfirm) { Text("确定", color = primaryColor) }
+                TextButton(onClick = onDismiss) { Text("取消", color = onPrimary) }
+                Text(title, color = tc.textPrimary, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = onConfirm) { Text("确定", color = onPrimary) }
             }
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             Spacer(Modifier.height(8.dp))
             content()
         }

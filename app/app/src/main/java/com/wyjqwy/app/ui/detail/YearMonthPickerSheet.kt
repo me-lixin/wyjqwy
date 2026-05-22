@@ -18,6 +18,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,8 +32,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import java.time.YearMonth
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +44,8 @@ fun YearMonthPickerSheet(
     onConfirm: (YearMonth) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var year by remember { mutableIntStateOf(initial.year) }
     var month by remember { mutableIntStateOf(initial.monthValue) }
@@ -59,7 +62,7 @@ fun YearMonthPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BookColors.White,
+        containerColor = tc.surface,
         dragHandle = null
     ) {
         Column(Modifier.padding(bottom = 24.dp)) {
@@ -71,14 +74,14 @@ fun YearMonthPickerSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("取消", color = primaryColor, fontSize = 15.sp)
+                    Text("取消", color = onPrimary, fontSize = 15.sp)
                 }
-                Text("选择日期", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = BookColors.TextBlack)
+                Text("选择日期", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = tc.textPrimary)
                 TextButton(onClick = { onConfirm(YearMonth.of(year, month)); onDismiss() }) {
-                    Text("确定", color = primaryColor, fontSize = 15.sp)
+                    Text("确定", color = onPrimary, fontSize = 15.sp)
                 }
             }
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -103,7 +106,7 @@ fun YearMonthPickerSheet(
                             TextButton(onClick = { year = y }) {
                                 Text(
                                     "$y 年",
-                                    color = if (selected) BookColors.TextBlack else BookColors.TextGray,
+                                    color = if (selected) tc.textPrimary else tc.textSecondary,
                                     fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                                     fontSize = if (selected) 18.sp else 15.sp
                                 )
@@ -127,7 +130,7 @@ fun YearMonthPickerSheet(
                             TextButton(onClick = { month = m }) {
                                 Text(
                                     String.format("%02d 月", m),
-                                    color = if (selected) BookColors.TextBlack else BookColors.TextGray,
+                                    color = if (selected) tc.textPrimary else tc.textSecondary,
                                     fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                                     fontSize = if (selected) 18.sp else 15.sp
                                 )

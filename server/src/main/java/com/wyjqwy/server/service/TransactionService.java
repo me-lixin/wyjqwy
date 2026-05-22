@@ -73,9 +73,6 @@ public class TransactionService {
             throw new BizException("request is required");
         }
         String voiceText = request.voiceText();
-        if (!StringUtils.hasText(voiceText) && StringUtils.hasText(request.audioBase64())) {
-            voiceText = voiceAccountingAiService.transcribeFromAudioBase64(request.audioBase64());
-        }
         if (!StringUtils.hasText(voiceText)) {
             throw new BizException("voiceText or audioBase64 is required");
         }

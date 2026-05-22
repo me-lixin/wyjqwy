@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,14 +45,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wyjqwy.app.R
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
+import kotlinx.coroutines.delay
 
 private enum class AuthMode { LOGIN, REGISTER }
 
@@ -68,93 +69,116 @@ fun BookkeepingLoginScreen(
     var agreed by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf("") }
+    var floatingTip by remember { mutableStateOf("") }
+    var floatingTipSeq by remember { mutableStateOf(0) }
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     LaunchedEffect(state.message) {
-        if (state.message.contains("注册成功")) {
+        val msg = state.message.trim()
+        if (msg.isBlank()) return@LaunchedEffect
+        if (msg.contains("注册成功")) {
             mode = AuthMode.LOGIN
             localError = ""
             password = ""
+            floatingTip = "注册成功，请登录"
+            floatingTipSeq++
+            vm.clearUiMessage()
+        } else {
+            floatingTip = msg
+            floatingTipSeq++
             vm.clearUiMessage()
         }
     }
-
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().background(primaryColor)) {
-            Column(
-                Modifier
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    if (onBack != null) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "返回",
-                            tint = BookColors.TextBlack,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clickable { onBack() }
-                        )
-                    } else {
-                        Spacer(Modifier.size(24.dp))
-                    }
-                    Text(
-                        text = if (mode == AuthMode.LOGIN) "登录" else "注册",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = BookColors.TextBlack,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.size(24.dp))
-                }
-                Spacer(Modifier.height(24.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .background(primaryColor, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.mipmap.ic_launcher_foreground),
-                            contentDescription = "Logo",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .scale(1.5f) // 🌟 核心：1.5f 代表放大 1.5 倍。你可以试着调成 1.2f 或 1.8f
-                        )
-                    }
-                    Spacer(Modifier.size(10.dp))
-                    Text(
-                        text = appTitle,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = BookColors.TextBlack,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Text(
-                    text = if (mode == AuthMode.LOGIN) "使用手机号密码登录" else "请完成账号注册",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = BookColors.TextBlack,
-                    modifier = Modifier.padding(top = 18.dp)
-                )
+    LaunchedEffect(floatingTipSeq) {
+        val msg = floatingTip.trim()
+        if (msg.isNotBlank()) {
+            delay(1800)
+            if (floatingTip == msg) {
+                floatingTip = ""
             }
         }
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(BookColors.Background)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxWidth().background(primaryColor)) {
+                Column(
+                    Modifier
+                        .statusBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (onBack != null) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = "返回",
+                                tint = onPrimary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clickable { onBack() }
+                            )
+                        } else {
+                            Spacer(Modifier.size(24.dp))
+                        }
+                        Text(
+                            text = if (mode == AuthMode.LOGIN) "登录" else "注册",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = onPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.height(24.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .background(primaryColor, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                                contentDescription = "Logo",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .scale(1.5f) // 🌟 核心：1.5f 代表放大 1.5 倍。你可以试着调成 1.2f 或 1.8f
+                            )
+                        }
+                        Spacer(Modifier.size(10.dp))
+                        Text(
+                            text = appTitle,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = onPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Text(
+                        text = if (mode == AuthMode.LOGIN) "使用手机号密码登录" else "请完成账号注册",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = onPrimary.copy(alpha = 0.92f),
+                        modifier = Modifier.padding(top = 18.dp)
+                    )
+                }
+            }
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(tc.background)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             OutlinedTextField(
                 value = phone,
                 onValueChange = {
                     phone = it.filter { ch -> ch.isDigit() }.take(11)
                     localError = ""
+                    vm.clearUiMessage()
                 },
                 Modifier
                     .fillMaxWidth()
@@ -165,9 +189,9 @@ fun BookkeepingLoginScreen(
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = BookColors.Line,
-                    focusedContainerColor = BookColors.White,
-                    unfocusedContainerColor = BookColors.White
+                    unfocusedBorderColor = tc.divider,
+                    focusedContainerColor = tc.surface,
+                    unfocusedContainerColor = tc.surface
                 )
             )
             Spacer(Modifier.height(12.dp))
@@ -176,6 +200,7 @@ fun BookkeepingLoginScreen(
                 onValueChange = {
                     password = it
                     localError = ""
+                    vm.clearUiMessage()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("请输入密码") },
@@ -187,16 +212,16 @@ fun BookkeepingLoginScreen(
                         Icon(
                             imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                             contentDescription = "切换密码显示",
-                            tint = BookColors.TextGray
+                            tint = tc.textSecondary
                         )
                     }
                 },
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = BookColors.Line,
-                    focusedContainerColor = BookColors.White,
-                    unfocusedContainerColor = BookColors.White
+                    unfocusedBorderColor = tc.divider,
+                    focusedContainerColor = tc.surface,
+                    unfocusedContainerColor = tc.surface
                 )
             )
             Spacer(Modifier.height(14.dp))
@@ -211,7 +236,7 @@ fun BookkeepingLoginScreen(
                 )
                 Text(
                     text = "已阅读并同意《用户协议》和《隐私协议》",
-                    color = BookColors.TextGray,
+                    color = tc.textSecondary,
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -221,16 +246,20 @@ fun BookkeepingLoginScreen(
                 onClick = {
                     when {
                         !phone.matches(Regex("^1[3-9]\\d{9}$")) -> {
-                            localError = "请输入正确的11位手机号"
+                            floatingTip = "请输入正确的11位手机号"
+                            floatingTipSeq++
                         }
                         mode == AuthMode.REGISTER && password.length < 7 -> {
-                            localError = "密码至少7位"
+                            floatingTip = "密码至少7位"
+                            floatingTipSeq++
                         }
                         password.isBlank() -> {
-                            localError = "请输入密码"
+                            floatingTip = "请输入密码"
+                            floatingTipSeq++
                         }
                         !agreed -> {
-                            localError = "请先同意协议"
+                            floatingTip = "请先同意协议"
+                            floatingTipSeq++
                         }
                         else -> {
                             localError = ""
@@ -247,8 +276,8 @@ fun BookkeepingLoginScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (mode == AuthMode.LOGIN) primaryColor else BookColors.Line,
-                    contentColor = BookColors.TextBlack
+                    containerColor = if (mode == AuthMode.LOGIN) primaryColor else tc.surfaceMuted,
+                    contentColor = if (mode == AuthMode.LOGIN) contentColorFor(primaryColor) else tc.textPrimary
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -266,27 +295,40 @@ fun BookkeepingLoginScreen(
                 if (mode == AuthMode.LOGIN) {
                     Text(
                         "注册账号",
-                        color = BookColors.TextGray,
+                        color = tc.textSecondary,
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.clickable { mode = AuthMode.REGISTER }
+                        modifier = Modifier.clickable {
+                            mode = AuthMode.REGISTER
+                            localError = ""
+                            vm.clearUiMessage()
+                        }
                     )
                 } else {
                     Text(
                         "返回登录",
-                        color = BookColors.TextGray,
+                        color = tc.textSecondary,
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.clickable { mode = AuthMode.LOGIN }
+                        modifier = Modifier.clickable {
+                            mode = AuthMode.LOGIN
+                            localError = ""
+                            vm.clearUiMessage()
+                        }
                     )
                 }
             }
-            val finalMsg = localError.ifBlank { state.message }
-            if (finalMsg.isNotBlank()) {
-                Spacer(Modifier.height(10.dp))
+        }
+        }
+        if (floatingTip.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 10.dp, start = 16.dp, end = 16.dp)
+            ) {
                 Text(
-                    text = finalMsg,
-                    color = BookColors.RedExpense,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                    text = floatingTip,
+                    color = tc.expense,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }

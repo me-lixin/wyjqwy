@@ -71,7 +71,6 @@ data class TransactionUpsertRequest(
 data class VoiceTransactionRequest(
     val mode: String = "voice",
     val voiceText: String? = null,
-    val audioBase64: String? = null,
     val occurredAt: String? = null
 )
 

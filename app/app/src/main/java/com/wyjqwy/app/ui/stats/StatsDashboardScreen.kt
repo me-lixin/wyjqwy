@@ -33,6 +33,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,8 +61,8 @@ import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -101,6 +102,8 @@ fun StatsDashboardScreen(
     onOpenCategoryStats: (TransactionItem, LocalDateTime, LocalDateTime) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     val chart by vm.chartStats.collectAsState()
     val weekFields = WeekFields.ISO
     val period = StatsPeriod.entries[chart.periodOrdinal.coerceIn(0, 2)]
@@ -123,7 +126,7 @@ fun StatsDashboardScreen(
                 ym.atDay(1).atStartOfDay() to ym.plusMonths(1).atDay(1).atStartOfDay()
             }
             StatsPeriod.YEAR -> {
-                val start = LocalDate.of(chart.selectedYear - 4, 1, 1).atStartOfDay()
+                val start = LocalDate.of(chart.selectedYear, 1, 1).atStartOfDay()
                 start to LocalDate.of(chart.selectedYear + 1, 1, 1).atStartOfDay()
             }
         }
@@ -237,11 +240,10 @@ fun StatsDashboardScreen(
                         onClick = { vm.setChartBillType(if (t == BillType.INCOME) 2 else 1) },
                         label = { Text(t.label) },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (billType == t) BookColors.TextBlack else primaryColor,
-                            labelColor = if (billType == t) BookColors.White else BookColors.TextBlack
+                            containerColor = if (billType == t) tc.surface else primaryColor,
+                            labelColor = if (billType == t) tc.textPrimary else onPrimary
                         ),
-                        // 👇 新增这一行配置，强制将边框设为黑色和 1.dp 宽度
-                        border = BorderStroke(1.dp, BookColors.TextBlack)
+                        border = BorderStroke(1.dp, if (billType == t) tc.divider else onPrimary.copy(alpha = 0.45f))
                     )
                 }
             }
@@ -253,8 +255,8 @@ fun StatsDashboardScreen(
                             .weight(1f)
                             .clip(RoundedCornerShape(0.dp))
                             .clickable { vm.setChartPeriodOrdinal(p.ordinal) },
-                        border = BorderStroke(1.dp, BookColors.TextBlack),
-                        color = if (period == p) BookColors.TextBlack else primaryColor
+                        border = BorderStroke(1.dp, onPrimary.copy(alpha = 0.45f)),
+                        color = if (period == p) tc.surface else primaryColor
                     ) {
                         Box(
                             modifier = Modifier
@@ -264,7 +266,7 @@ fun StatsDashboardScreen(
                         ) {
                             Text(
                                 text = p.label,
-                                color = if (period == p) BookColors.White else BookColors.TextBlack,
+                                color = if (period == p) tc.textPrimary else onPrimary,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -281,7 +283,7 @@ fun StatsDashboardScreen(
         }
         if (mergedTx.isEmpty() && chart.lastError != null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(chart.lastError ?: "", color = BookColors.RedExpense)
+                Text(chart.lastError ?: "", color = tc.expense)
             }
             return@Column
         }
@@ -290,21 +292,21 @@ fun StatsDashboardScreen(
             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Text(
                     text = "总${billType.label}: ${filteredByType.sumOf { abs(it.amount) }.toAmountText()}",
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.size(4.dp))
                 Text(
                     text = "共 ${filteredByType.size} 笔，分类 ${ranked.size} 个（Top10）",
-                    color = BookColors.TextGray,
+                    color = tc.textSecondary,
                     fontSize = 13.sp
                 )
                 if (chart.lastError != null && mergedTx.isNotEmpty()) {
                     Spacer(Modifier.size(4.dp))
                     Text(
                         text = chart.lastError ?: "",
-                        color = BookColors.TextGray,
+                        color = tc.textSecondary,
                         fontSize = 11.sp
                     )
                 }
@@ -318,10 +320,10 @@ fun StatsDashboardScreen(
                 )
                 // 剔除了这里底部多余的平均线文字展示
             }
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             Text(
                 text = "${billType.label}排行榜",
-                color = BookColors.TextBlack,
+                color = tc.textPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
@@ -333,7 +335,7 @@ fun StatsDashboardScreen(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("当前时间范围暂无数据", color = BookColors.TextGray)
+                    Text("当前时间范围暂无数据", color = tc.textSecondary)
                 }
             } else {
                 LazyColumn(
@@ -359,15 +361,15 @@ fun StatsDashboardScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(item.categoryName, color = BookColors.TextBlack, fontSize = 14.sp)
+                                    Text(item.categoryName, color = tc.textPrimary, fontSize = 14.sp)
                                     Text(
                                         "${String.format("%.1f", pct * 100)}%",
-                                        color = BookColors.TextGray,
+                                        color = tc.textSecondary,
                                         fontSize = 13.sp
                                     )
                                     Text(
                                         item.totalAmount.toAmountText(),
-                                        color = BookColors.TextBlack,
+                                        color = tc.textPrimary,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -377,7 +379,7 @@ fun StatsDashboardScreen(
                                     progress = { pct },
                                     modifier = Modifier.fillMaxWidth(),
                                     color = primaryColor,
-                                    trackColor = BookColors.Line
+                                    trackColor = tc.divider
                                 )
                             }
                         }
@@ -391,6 +393,7 @@ fun StatsDashboardScreen(
 @Composable
 private fun TimeRangeChip(text: String, onClick: () -> Unit) {
     val primaryColor = rememberThemePrimaryColor()
+    val onPrimary = contentColorFor(primaryColor)
     Surface(
         modifier = Modifier.clip(RoundedCornerShape(5.dp)).clickable(onClick = onClick),
         color = primaryColor
@@ -399,8 +402,8 @@ private fun TimeRangeChip(text: String, onClick: () -> Unit) {
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text, color = BookColors.TextBlack, fontSize = 14.sp)
-            Icon(Icons.Outlined.KeyboardArrowDown, null, tint = BookColors.TextGray, modifier = Modifier.size(20.dp))
+            Text(text, color = onPrimary, fontSize = 14.sp)
+            Icon(Icons.Outlined.KeyboardArrowDown, null, tint = onPrimary.copy(alpha = 0.82f), modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -433,9 +436,10 @@ private fun TrendLineChart(
     modifier: Modifier = Modifier
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     if (data.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("暂无趋势数据", color = BookColors.TextGray, fontSize = 12.sp)
+            Text("暂无趋势数据", color = tc.textSecondary, fontSize = 12.sp)
         }
         return
     }
@@ -492,7 +496,7 @@ private fun TrendLineChart(
                 val rightPad = 12.dp.toPx()
                 val width = size.width - leftPad - rightPad
                 drawLine(
-                    color = BookColors.TextGray.copy(alpha = 0.55f),
+                    color = tc.textSecondary.copy(alpha = 0.55f),
                     start = Offset(leftPad, g.avgY),
                     end = Offset(leftPad + width, g.avgY),
                     strokeWidth = 1.dp.toPx(),
@@ -514,7 +518,7 @@ private fun TrendLineChart(
                     val isSelected = index == selectedIndex
                     drawCircle(
                         color = when {
-                            isSelected -> BookColors.TextBlack
+                            isSelected -> tc.textPrimary
                             index == maxIdx -> androidx.compose.ui.graphics.Color(0xFFD32F2F)
                             index == minIdx -> androidx.compose.ui.graphics.Color(0xFF1976D2)
                             else -> primaryColor
@@ -535,13 +539,13 @@ private fun TrendLineChart(
                                 y = (chartHeightPx * g.avgYRatio - 20.dp.toPx()).toInt().coerceAtLeast(0)
                             )
                         },
-                    color = BookColors.White,
+                    color = tc.surface,
                     tonalElevation = 1.dp,
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
                         text = "平均 ${average.toAmountText()}",
-                        color = BookColors.TextGray,
+                        color = tc.textSecondary,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
@@ -576,13 +580,13 @@ private fun TrendLineChart(
                                 y = offsetY.toInt()
                             )
                         },
-                    color = BookColors.White,
+                    color = tc.surface,
                     tonalElevation = 2.dp,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = label,
-                        color = BookColors.TextBlack,
+                        color = tc.textPrimary,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -594,7 +598,7 @@ private fun TrendLineChart(
             Spacer(Modifier.size(4.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 axisLabels.forEach { txt ->
-                    Text(text = txt, color = BookColors.TextGray, fontSize = 10.sp)
+                    Text(text = txt, color = tc.textSecondary, fontSize = 10.sp)
                 }
             }
         }
@@ -650,19 +654,20 @@ private fun buildTrendSeries(
             }
         }
         StatsPeriod.YEAR -> {
-            val endYear = from.year + 4
-            val yearMap = (from.year..endYear).associateWith { 0.0 }.toMutableMap()
+            val selectedYear = from.year
+            val monthMap = (1..12).associateWith { 0.0 }.toMutableMap()
             list.forEach { tx ->
                 val dt = tx.parsedOccurredAt ?: return@forEach
-                if (dt.year in from.year..endYear) {
-                    yearMap[dt.year] = yearMap.getValue(dt.year) + abs(tx.amount)
+                if (dt.year == selectedYear) {
+                    val month = dt.monthValue
+                    monthMap[month] = monthMap.getValue(month) + abs(tx.amount)
                 }
             }
-            (from.year..endYear).map { y ->
+            (1..12).map { month ->
                 TrendPoint(
-                    axisLabel = "${y}年",
-                    amount = yearMap.getValue(y),
-                    bubbleLabel = "${y}年"
+                    axisLabel = "${month}月",
+                    amount = monthMap.getValue(month),
+                    bubbleLabel = "${selectedYear}年${month}月"
                 )
             }
         }

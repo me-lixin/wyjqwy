@@ -52,8 +52,9 @@ import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
+import androidx.compose.material3.contentColorFor
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -70,6 +71,7 @@ fun SearchScreen(
     onDeleteTransaction: (TransactionItem) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     var query by remember { mutableStateOf("") }
     var amountRangeFilter by remember { mutableStateOf(false) }
     var minAmountText by remember { mutableStateOf("") }
@@ -117,7 +119,7 @@ fun SearchScreen(
                 TextButton(onClick = {
                     onDeleteTransaction(tx)
                     pendingDeleteTx = null
-                }) { Text("删除", color = BookColors.RedExpense) }
+                }) { Text("删除", color = tc.expense) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteTx = null }) { Text("取消") }
@@ -137,12 +139,12 @@ fun SearchScreen(
                     Icon(
                         Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "返回",
-                        tint = BookColors.TextBlack
+                        tint = tc.textPrimary
                     )
                 }
                 Text(
                     "搜索",
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 4.dp)
@@ -159,15 +161,15 @@ fun SearchScreen(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("搜索备注、分类...", color = BookColors.TextGray, fontSize = 14.sp) },
+                placeholder = { Text("搜索备注、分类...", color = tc.textSecondary, fontSize = 14.sp) },
                 leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = null, tint = BookColors.TextGray)
+                    Icon(Icons.Outlined.Search, contentDescription = null, tint = tc.textSecondary)
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = BookColors.Line,
+                    unfocusedBorderColor = tc.divider,
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
@@ -178,7 +180,7 @@ fun SearchScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("金额范围筛选", color = BookColors.TextBlack, fontSize = 14.sp)
+                Text("金额范围筛选", color = tc.textPrimary, fontSize = 14.sp)
                 Switch(
                     checked = amountRangeFilter,
                     onCheckedChange = { amountRangeFilter = it }
@@ -198,7 +200,7 @@ fun SearchScreen(
                         singleLine = true,
                         placeholder = { Text("最小金额") }
                     )
-                    Text("至", color = BookColors.TextBlack, fontSize = 16.sp)
+                    Text("至", color = tc.textPrimary, fontSize = 16.sp)
                     OutlinedTextField(
                         value = maxAmountText,
                         onValueChange = { maxAmountText = it.filter { ch -> ch.isDigit() || ch == '.' } },
@@ -209,7 +211,7 @@ fun SearchScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             if (query.isBlank()) {
                 Box(
                     Modifier
@@ -223,10 +225,10 @@ fun SearchScreen(
                             Icons.Outlined.Search,
                             contentDescription = null,
                             modifier = Modifier.size(72.dp),
-                            tint = BookColors.TextGray.copy(alpha = 0.45f)
+                            tint = tc.textSecondary.copy(alpha = 0.45f)
                         )
                         Spacer(Modifier.height(12.dp))
-                        Text("输入关键词开始搜索", color = BookColors.TextGray, fontSize = 14.sp)
+                        Text("输入关键词开始搜索", color = tc.textSecondary, fontSize = 14.sp)
                     }
                 }
             } else if (searching) {
@@ -247,7 +249,7 @@ fun SearchScreen(
                         .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(backendError, color = BookColors.RedExpense)
+                    Text(backendError, color = tc.expense)
                 }
             } else if (results.isEmpty()) {
                 Box(
@@ -257,7 +259,7 @@ fun SearchScreen(
                         .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("无匹配结果", color = BookColors.TextGray)
+                    Text("无匹配结果", color = tc.textSecondary)
                 }
             } else {
                 LazyColumn(Modifier.weight(1f)) {
@@ -277,14 +279,14 @@ fun SearchScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(BookColors.RedExpense.copy(alpha = 0.12f))
+                                            .background(tc.expense.copy(alpha = 0.12f))
                                             .padding(horizontal = 16.dp),
                                         contentAlignment = Alignment.CenterEnd
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.DeleteOutline,
                                             contentDescription = "删除明细",
-                                            tint = BookColors.RedExpense
+                                            tint = tc.expense
                                         )
                                     }
                                 }
@@ -315,7 +317,7 @@ fun SearchScreen(
                                 }
                                 val income = tx.type == 2
                                 val prefix = if (income) "+" else "-"
-                                val color = if (income) androidx.compose.ui.graphics.Color(0xFF2E7D32) else BookColors.RedExpense
+                                val color = if (income) androidx.compose.ui.graphics.Color(0xFF2E7D32) else tc.expense
                                 Text(
                                     text = if (amountVisible) "$prefix${abs(tx.amount).toAmountText()}" else "****",
                                     color = color,
@@ -324,7 +326,7 @@ fun SearchScreen(
                                 )
                             }
                         }
-                        HorizontalDivider(color = BookColors.Line)
+                        HorizontalDivider(color = tc.divider)
                     }
                 }
             }

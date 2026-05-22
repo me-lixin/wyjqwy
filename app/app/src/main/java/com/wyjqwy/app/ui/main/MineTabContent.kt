@@ -57,11 +57,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.layout.onSizeChanged
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.DecoratedThemeIcon
 import com.wyjqwy.app.ui.theme.ThemeBackgroundManager
 import com.wyjqwy.app.ui.theme.ThemeUtils
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import java.time.LocalDate
 import kotlin.math.abs
 
@@ -76,6 +76,7 @@ fun MineTabScreen(
     onOpenAccountSettings: () -> Unit,
     profileRefreshTick: Int
 ) {
+    val tc = themeColors()
     val primaryColor = rememberThemePrimaryColor()
     val mineTextScale = rememberMineTextScale()
     val context = LocalContext.current
@@ -111,7 +112,7 @@ fun MineTabScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TextureBackgroundContainer(
+        MinePageHeaderBackground(
             modifier = Modifier.fillMaxWidth(),
             type = selectedTexture,
             primaryColor = primaryColor
@@ -131,7 +132,7 @@ fun MineTabScreen(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clip(CircleShape)
-                                .background(BookColors.White)
+                                .background(tc.surface)
                                 .clickable {
                                     if (state.loggedIn) onOpenAccountSettings() else onOpenLoginRegister()
                                 },
@@ -147,7 +148,7 @@ fun MineTabScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Person,
                                     contentDescription = "账号设置",
-                                    tint = BookColors.TextGray,
+                                    tint = tc.textSecondary,
                                     modifier = Modifier.size(42.dp)
                                 )
                             }
@@ -159,7 +160,7 @@ fun MineTabScreen(
                             } else {
                                 "点击登录"
                             },
-                            color = BookColors.TextBlack,
+                            color = tc.textPrimary,
                             style = MaterialTheme.typography.displaySmall.scaled(mineTextScale),
                             fontWeight = FontWeight.Bold
                         )
@@ -177,22 +178,22 @@ fun MineTabScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BookColors.Background)
+                .background(tc.background)
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 MineMenuCard {
                     MineMenuRow(icon = Icons.Outlined.SwapHoriz, title = "导入数据", onClick = onOpenImport)
-                    HorizontalDivider(color = BookColors.Line)
+                    HorizontalDivider(color = tc.divider)
                     MineMenuRow(icon = Icons.Outlined.WorkOutline, title = "导出数据", onClick = onOpenExport)
-                    HorizontalDivider(color = BookColors.Line)
+                    HorizontalDivider(color = tc.divider)
                     MineMenuRow(icon = Icons.Outlined.Face, title = "个性装扮", onClick = onOpenDressUp)
-                    HorizontalDivider(color = BookColors.Line)
+                    HorizontalDivider(color = tc.divider)
                     MineMenuRow(
                         icon = Icons.Outlined.Person,
                         title = if (state.loggedIn) "退出登录" else "未登录（登录 / 注册）",
-                        titleColor = BookColors.RedExpense,
+                        titleColor = tc.expense,
                         onClick = {
                             if (state.loggedIn) vm.logout() else onOpenLoginRegister()
                         }
@@ -204,65 +205,19 @@ fun MineTabScreen(
 }
 
 @Composable
-fun MineFeaturePlaceholderScreen(
-    title: String,
-    onBack: () -> Unit
-) {
-    val primaryColor = rememberThemePrimaryColor()
-    val mineTextScale = rememberMineTextScale()
-    val context = LocalContext.current
-    val selectedTexture = remember { ThemeUtils.getTextureType(context) }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-    ) {
-        TextureBackgroundContainer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            type = selectedTexture,
-            primaryColor = primaryColor
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "返回",
-                    tint = BookColors.TextBlack,
-                    modifier = Modifier.size(24.dp).clickable { onBack() }
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    title,
-                    color = BookColors.TextBlack,
-                    style = MaterialTheme.typography.titleLarge.scaled(mineTextScale),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("${title}功能开发中", color = BookColors.TextGray, fontSize = 15.sp)
-        }
-    }
-}
-
-@Composable
 private fun MineStatCell(value: String, label: String, textScale: Float, modifier: Modifier = Modifier) {
+    val tc = themeColors()
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             value,
-            color = BookColors.TextBlack,
+            color = tc.textPrimary,
             style = MaterialTheme.typography.displaySmall.scaled(textScale),
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(4.dp))
         Text(
             label,
-            color = BookColors.TextBlack.copy(alpha = 0.75f),
+            color = tc.textPrimary.copy(alpha = 0.75f),
             style = MaterialTheme.typography.bodyLarge.scaled(textScale)
         )
     }
@@ -270,8 +225,9 @@ private fun MineStatCell(value: String, label: String, textScale: Float, modifie
 
 @Composable
 private fun MineMenuCard(content: @Composable () -> Unit) {
+    val tc = themeColors()
     Card(
-        colors = CardDefaults.cardColors(containerColor = BookColors.White),
+        colors = CardDefaults.cardColors(containerColor = tc.surface),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -281,7 +237,7 @@ private fun MineMenuCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun TextureBackgroundContainer(
+internal fun MinePageHeaderBackground(
     modifier: Modifier = Modifier,
     type: ThemeBackgroundManager.TextureType,
     primaryColor: Color,
@@ -317,9 +273,10 @@ private fun TextureBackgroundContainer(
 private fun MineMenuRow(
     icon: ImageVector,
     title: String,
-    titleColor: Color = BookColors.TextBlack,
+    titleColor: Color? = null,
     onClick: () -> Unit
 ) {
+    val tc = themeColors()
     val primaryColor = rememberThemePrimaryColor()
     val mineTextScale = rememberMineTextScale()
     Row(
@@ -342,13 +299,13 @@ private fun MineMenuRow(
         Spacer(Modifier.width(12.dp))
         Text(
             title,
-            color = titleColor,
+            color = titleColor ?: tc.textPrimary,
             style = MaterialTheme.typography.titleLarge.scaled(mineTextScale),
             modifier = Modifier.weight(1f)
         )
         Text(
             ">",
-            color = BookColors.TextGray,
+            color = tc.textSecondary,
             style = MaterialTheme.typography.titleLarge.scaled(mineTextScale)
         )
     }

@@ -15,6 +15,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,8 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -39,6 +40,8 @@ fun DetailYearMonthPickerSheet(
     onConfirm: (YearMonth) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     val currentYear = LocalDate.now().year
     val yearRange = remember(currentYear) { (currentYear - 4..currentYear).toList().reversed() }
     val yearsStr = remember(yearRange) { yearRange.map { "${it}年" } }
@@ -57,7 +60,7 @@ fun DetailYearMonthPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = BookColors.White,
+        containerColor = tc.surface,
         dragHandle = null
     ) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 20.dp)) {
@@ -68,11 +71,11 @@ fun DetailYearMonthPickerSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) { Text("取消", color = primaryColor) }
-                Text("选择年月", color = BookColors.TextBlack, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { onConfirm(YearMonth.of(finalYear, finalMonth)) }) { Text("确定", color = primaryColor) }
+                TextButton(onClick = onDismiss) { Text("取消", color = onPrimary) }
+                Text("选择年月", color = tc.textPrimary, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { onConfirm(YearMonth.of(finalYear, finalMonth)) }) { Text("确定", color = onPrimary) }
             }
-            HorizontalDivider(color = BookColors.Line)
+            HorizontalDivider(color = tc.divider)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
@@ -81,7 +84,8 @@ fun DetailYearMonthPickerSheet(
                         rowCount = 5,
                         startIndex = initialYearIndex,
                         onScrollFinished = { snappedIndex ->
-                            finalYear = yearRange[snappedIndex]
+                            val safeIndex = snappedIndex.coerceIn(0, yearRange.lastIndex)
+                            finalYear = yearRange[safeIndex]
                             return@WheelTextPicker null
                         }
                     )
@@ -92,7 +96,8 @@ fun DetailYearMonthPickerSheet(
                         rowCount = 5,
                         startIndex = initialMonthIndex,
                         onScrollFinished = { snappedIndex ->
-                            finalMonth = snappedIndex + 1
+                            val safeIndex = snappedIndex.coerceIn(0, monthsStr.lastIndex)
+                            finalMonth = safeIndex + 1
                             return@WheelTextPicker null
                         }
                     )

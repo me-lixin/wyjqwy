@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.toAmountText
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -78,6 +78,7 @@ fun AutoInvestScreen(
     onOpenNoteDetails: (noteKey: String, noteDisplayName: String) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     val state by vm.autoInvest.collectAsState()
     val currentYear = LocalDate.now().year
     val yearsNeeded = remember(currentYear) { (currentYear - 9..currentYear).toSet() }
@@ -137,7 +138,7 @@ fun AutoInvestScreen(
         ) {
             Text(
                 text = "定投管理",
-                color = BookColors.TextBlack,
+                color = tc.textPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -152,7 +153,7 @@ fun AutoInvestScreen(
 
         if (investTx.isEmpty() && state.lastError != null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(state.lastError.orEmpty(), color = BookColors.RedExpense)
+                Text(state.lastError.orEmpty(), color = tc.expense)
             }
             return@Column
         }
@@ -168,7 +169,7 @@ fun AutoInvestScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 12.dp),
                     shape = RoundedCornerShape(18.dp),
-                    color = BookColors.White,
+                    color = tc.surface,
                     shadowElevation = 6.dp
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -181,16 +182,16 @@ fun AutoInvestScreen(
                             Column(Modifier.fillMaxWidth()) {
                                 // 第一行：数值行
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("¥${totalAmount.toAmountText()}", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("${investTx.size}次", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("${totalDays}天", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("¥${totalAmount.toAmountText()}", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = tc.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("${investTx.size}次", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = tc.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("${totalDays}天", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = tc.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                                 }
                                 Spacer(Modifier.height(4.dp))
                                 // 第二行：标签行
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("总资产", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = BookColors.TextGray, fontSize = 13.sp)
-                                    Text("总次数", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = BookColors.TextGray, fontSize = 13.sp)
-                                    Text("总时长", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = BookColors.TextGray, fontSize = 13.sp)
+                                    Text("总资产", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = tc.textSecondary, fontSize = 13.sp)
+                                    Text("总次数", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = tc.textSecondary, fontSize = 13.sp)
+                                    Text("总时长", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = tc.textSecondary, fontSize = 13.sp)
                                 }
                             }                        }
                         Spacer(Modifier.height(18.dp))
@@ -212,13 +213,13 @@ fun AutoInvestScreen(
                                     InvestLegendRow(item = item, totalAmount = totalAmount)
                                 }
                                 if (groups.isEmpty()) {
-                                    Text("暂无投资数据", color = BookColors.TextGray, fontSize = 13.sp)
+                                    Text("暂无投资数据", color = tc.textSecondary, fontSize = 13.sp)
                                 }
                             }
                         }
                         if (state.lastError != null && merged.isNotEmpty()) {
                             Spacer(Modifier.height(10.dp))
-                            Text(state.lastError.orEmpty(), color = BookColors.TextGray, fontSize = 11.sp)
+                            Text(state.lastError.orEmpty(), color = tc.textSecondary, fontSize = 11.sp)
                         }
                     }
                 }
@@ -227,7 +228,7 @@ fun AutoInvestScreen(
             item {
                 Text(
                     text = "投资分类列表",
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 12.dp)
@@ -242,7 +243,7 @@ fun AutoInvestScreen(
                             .padding(vertical = 48.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("暂无投资明细", color = BookColors.TextGray)
+                        Text("暂无投资明细", color = tc.textSecondary)
                     }
                 }
             } else {
@@ -252,7 +253,7 @@ fun AutoInvestScreen(
                         totalAmount = totalAmount,
                         onClick = { onOpenNoteDetails(item.key, item.name) }
                     )
-                    HorizontalDivider(color = BookColors.Line)
+                    HorizontalDivider(color = tc.divider)
                 }
             }
 
@@ -265,6 +266,7 @@ fun AutoInvestScreen(
 
 @Composable
 private fun InvestStatCell(label: String, value: String, modifier: Modifier = Modifier) {
+    val tc = themeColors()
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -272,7 +274,7 @@ private fun InvestStatCell(label: String, value: String, modifier: Modifier = Mo
     ) {
         Text(
             value,
-            color = BookColors.TextBlack,
+            color = tc.textPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
             lineHeight = 20.sp,
@@ -281,7 +283,7 @@ private fun InvestStatCell(label: String, value: String, modifier: Modifier = Mo
         Spacer(Modifier.height(4.dp))
         Text(
             label,
-            color = BookColors.TextGray,
+            color = tc.textSecondary,
             fontSize = 12.sp,
             lineHeight = 14.sp,
             maxLines = 1
@@ -295,6 +297,7 @@ private fun InvestDonutChart(
     totalAmount: Double,
     modifier: Modifier = Modifier
 ) {
+    val tc = themeColors()
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = size.minDimension * 0.16f
@@ -305,7 +308,7 @@ private fun InvestDonutChart(
             )
             if (groups.isEmpty() || totalAmount <= 0.0) {
                 drawArc(
-                    color = BookColors.Line,
+                    color = tc.divider,
                     startAngle = -90f,
                     sweepAngle = 360f,
                     useCenter = false,
@@ -331,15 +334,16 @@ private fun InvestDonutChart(
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("总金额", color = BookColors.TextGray, fontSize = 12.sp)
+            Text("总金额", color = tc.textSecondary, fontSize = 12.sp)
             Spacer(Modifier.height(4.dp))
-            Text("¥${totalAmount.toAmountText()}", color = BookColors.TextBlack, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("¥${totalAmount.toAmountText()}", color = tc.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
 private fun InvestLegendRow(item: InvestGroupItem, totalAmount: Double) {
+    val tc = themeColors()
     val percent = if (totalAmount <= 0.0) 0.0 else item.totalAmount / totalAmount * 100
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
@@ -350,11 +354,11 @@ private fun InvestLegendRow(item: InvestGroupItem, totalAmount: Double) {
         Spacer(Modifier.width(8.dp))
         Text(
             text = item.name,
-            color = BookColors.TextBlack,
+            color = tc.textPrimary,
             fontSize = 13.sp,
             modifier = Modifier.weight(1f)
         )
-        Text("${String.format("%.1f", percent)}%", color = BookColors.TextGray, fontSize = 12.sp)
+        Text("${String.format("%.1f", percent)}%", color = tc.textSecondary, fontSize = 12.sp)
     }
 }
 
@@ -364,6 +368,7 @@ private fun InvestGroupRow(
     totalAmount: Double,
     onClick: () -> Unit
 ) {
+    val tc = themeColors()
     val pct = if (totalAmount <= 0.0) 0f else (item.totalAmount / totalAmount).toFloat()
     Row(
         modifier = Modifier
@@ -391,9 +396,9 @@ private fun InvestGroupRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(item.name, color = BookColors.TextBlack, fontSize = 16.sp)
-                Text("${String.format("%.1f", pct * 100)}%", color = BookColors.TextGray, fontSize = 13.sp)
-                Text("¥${item.totalAmount.toAmountText()}", color = BookColors.TextBlack, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(item.name, color = tc.textPrimary, fontSize = 16.sp)
+                Text("${String.format("%.1f", pct * 100)}%", color = tc.textSecondary, fontSize = 13.sp)
+                Text("¥${item.totalAmount.toAmountText()}", color = tc.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -403,7 +408,7 @@ private fun InvestGroupRow(
                         append(" · 最近 ${it.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))}")
                     }
                 },
-                color = BookColors.TextGray,
+                color = tc.textSecondary,
                 fontSize = 12.sp
             )
             Spacer(Modifier.height(6.dp))
@@ -411,7 +416,7 @@ private fun InvestGroupRow(
                 progress = { pct },
                 modifier = Modifier.fillMaxWidth(),
                 color = item.color,
-                trackColor = BookColors.Line
+                trackColor = tc.divider
             )
         }
     }

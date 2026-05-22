@@ -192,10 +192,11 @@ public class VoiceAccountingAiService {
                             - note: 简短备注（不超6字）
                             - occurredAt: 本地时间，格式必须为 yyyy-MM-ddTHH:mm:ss
                             时间规则：
-                            如果用户输入里有明确时间（含可确定的年月日），occurredAt 就用用户输入的时间；
-                            如果没有识别出时间，或无法确认具体的年月信息，则 occurredAt 使用当前时间（即“现在”）。
+                            如果用户输入里有明确时间（含可确定的年月日），occurredAt 就用用户输入的时间
+                            当前时间是%s，如果用户输入里面包含了今天，昨天，前天，大前天，上周上个月之类的词汇则根据当前时间去计算
+                            如果没有识别出时间，或无法确认具体的年月信息，则 occurredAt 使用当前时间
                             即使识别到时间，也必须在“当前时间前后10个月”内；超出10个月范围一律使用当前时间。
-                            """;
+                            """.formatted(LocalDateTime.now());
 
         Map<String, Object> userPayload = new HashMap<>();
         userPayload.put("voiceText", voiceText);

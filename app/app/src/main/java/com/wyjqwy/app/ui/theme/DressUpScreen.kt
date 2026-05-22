@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,6 +50,7 @@ private data class DressThemeItem(
 @Composable
 fun DressUpScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val tc = themeColors()
     val options = remember {
         listOf(
             DressThemeItem("默认", Color(0xFF4DB6AC), ThemeBackgroundManager.TextureType.GRADIENT_FLOW),
@@ -68,6 +70,7 @@ fun DressUpScreen(onBack: () -> Unit) {
             .takeIf { it >= 0 } ?: 0
     }
     var selected by remember(initialIndex) { mutableIntStateOf(initialIndex) }
+    val onPrimary = contentColorFor(options[selected].primaryColor)
 
     Column(
         modifier = Modifier
@@ -85,7 +88,7 @@ fun DressUpScreen(onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "返回",
-                tint = BookColors.TextBlack,
+                tint = onPrimary,
                 modifier = Modifier
                     .size(24.dp)
                     .clickable { onBack() }
@@ -93,7 +96,7 @@ fun DressUpScreen(onBack: () -> Unit) {
             androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
             Text(
                 text = "个性装扮",
-                color = BookColors.TextBlack,
+                color = onPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -110,6 +113,8 @@ fun DressUpScreen(onBack: () -> Unit) {
                 DressThemeCard(
                     item = item,
                     selected = idx == selected,
+                    surfaceColor = tc.surfaceMuted,
+                    textColor = tc.textPrimary,
                     onClick = {
                         selected = idx
                         ThemeUtils.saveTheme(context, item.primaryColor.toArgb(), item.textureType)
@@ -124,13 +129,15 @@ fun DressUpScreen(onBack: () -> Unit) {
 private fun DressThemeCard(
     item: DressThemeItem,
     selected: Boolean,
+    surfaceColor: Color,
+    textColor: Color,
     onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFF2F2F2))
+            .background(surfaceColor)
             .clickable { onClick() }
             .padding(8.dp)
     ) {
@@ -165,7 +172,7 @@ private fun DressThemeCard(
         androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
         Text(
             text = item.name,
-            color = BookColors.TextBlack,
+            color = textColor,
             fontSize = 14.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             modifier = Modifier.align(Alignment.CenterHorizontally)

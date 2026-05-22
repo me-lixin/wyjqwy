@@ -101,9 +101,10 @@ import com.wyjqwy.app.data.PreferencesStore
 import com.wyjqwy.app.data.TransactionItem
 import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
-import com.wyjqwy.app.ui.theme.BookColors
+import androidx.compose.material3.contentColorFor
 import com.wyjqwy.app.ui.theme.SubPageTopBar
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.ReorderableItem
@@ -138,6 +139,8 @@ fun CategoryPickerScreen(
     onBack: () -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val onPrimary = contentColorFor(primaryColor)
     var tab by remember(initialTransaction?.id) {
         mutableIntStateOf(if (initialTransaction?.type == 2) 1 else 0)
     } // 0 支出 1 收入
@@ -175,6 +178,12 @@ fun CategoryPickerScreen(
     }
 
     val txType = if (tab == 0) 1 else 2
+    val hotNoteSuggestions = remember(state.transactions, txType) {
+        buildQuickNoteSuggestions(
+            transactions = state.transactions,
+            txType = txType
+        )
+    }
     val presets = if (tab == 0) expenseCategoryPresets else incomeCategoryPresets
     val apiList = if (txType == 1) state.categoriesExpense else state.categoriesIncome
     val apiSignature = remember(txType, apiList) {
@@ -189,17 +198,6 @@ fun CategoryPickerScreen(
         orderedEntries.addAll(merged)
         prefsStore.setCategoryOrderNow(txType, merged.map { it.name })
         launch { prefsStore.setCategoryOrder(txType, merged.map { it.name }) }
-    }
-    val hotNoteSuggestions = remember(state.transactions) {
-        state.transactions
-            .mapNotNull { it.note?.trim() }
-            .filter { it.isNotBlank() }
-            .groupingBy { it }
-            .eachCount()
-            .entries
-            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
-            .map { it.key }
-            .take(12)
     }
     val migrateTargetCategories = remember(
         migrateSession?.deletingCategoryId,
@@ -257,7 +255,7 @@ fun CategoryPickerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(BookColors.White)
+            .background(tc.surface)
     ) {
     Column(Modifier.fillMaxSize()) {
         Column(
@@ -268,6 +266,7 @@ fun CategoryPickerScreen(
         ) {
             SubPageTopBar(
                 title = if (initialTransaction == null) "添加记账" else "编辑记账",
+                contentColor = onPrimary,
                 onBack = {
                     if (selectedEntry != null) {
                         focusManager.clearFocus()
@@ -298,7 +297,7 @@ fun CategoryPickerScreen(
                             ) {
                                 Text(
                                     "编辑",
-                                    color = BookColors.TextBlack,
+                                    color = onPrimary,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                             }
@@ -316,7 +315,7 @@ fun CategoryPickerScreen(
                         ) {
                             Text(
                                 text = if (editDeleteMode) "完成" else "新增",
-                                color = BookColors.TextBlack,
+                                color = onPrimary,
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -333,6 +332,7 @@ fun CategoryPickerScreen(
                 CategoryTab(
                     label = "支出分类",
                     selected = tab == 0,
+                    contentColor = onPrimary,
                     onClick = {
                         tab = 0
                         focusManager.clearFocus()
@@ -348,6 +348,7 @@ fun CategoryPickerScreen(
                 CategoryTab(
                     label = "收入分类",
                     selected = tab == 1,
+                    contentColor = onPrimary,
                     onClick = {
                         tab = 1
                         focusManager.clearFocus()
@@ -512,7 +513,7 @@ fun CategoryPickerScreen(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .background(BookColors.White)
+                        .background(tc.surface)
                         .imePadding()
                         .navigationBarsPadding()
                 ) {
@@ -521,7 +522,7 @@ fun CategoryPickerScreen(
                         Text(
                             text = amountDisplay,
                             fontSize = 20.sp,
-                            color = BookColors.TextBlack,
+                            color = tc.textPrimary,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
@@ -536,7 +537,7 @@ fun CategoryPickerScreen(
                             onValueChange = { note = it },
                             textStyle = TextStyle(
                                 fontSize = 14.sp,
-                                color = Color.Black
+                                color = tc.textPrimary
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -559,38 +560,38 @@ fun CategoryPickerScreen(
                                     contentAlignment = Alignment.CenterStart // 🌟 文字垂直居中
                                 ) {
                                     if (note.isEmpty()) {
-                                        Text("写点备注...", color = Color.Gray, fontSize = 14.sp)
+                                        Text("写点备注...", color = tc.textSecondary, fontSize = 14.sp)
                                     }
                                     innerTextField()
                                 }
                             }
                         )
-                        if (hotNoteSuggestions.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                hotNoteSuggestions.forEach { suggestion ->
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(BookColors.Background)
-                                            .clickable {
-                                                note = suggestion
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                            }
-                                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = suggestion,
-                                            fontSize = 13.sp,
-                                            color = BookColors.TextBlack
-                                        )
-                                    }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp)
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            hotNoteSuggestions.forEach { suggestion ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(tc.surfaceMuted)
+                                        .clickable {
+                                            note = suggestion
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = suggestion,
+                                        fontSize = 13.sp,
+                                        color = tc.textPrimary
+                                    )
                                 }
                             }
                         }
@@ -867,6 +868,8 @@ private fun NumberPad(
     onDone: () -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
+    val padOnPrimary = contentColorFor(primaryColor)
     val rows = listOf(
         listOf("7", "8", "9", "DEL"),
         listOf("4", "5", "6", "+"),
@@ -884,7 +887,7 @@ private fun NumberPad(
                             .background(
                                 when (key) {
                                     "完成" -> primaryColor
-                                    else -> Color(0xFFF7F7F7)
+                                    else -> tc.surfaceMuted
                                 }
                             )
                             .clickable(enabled = !loading) {
@@ -903,38 +906,24 @@ private fun NumberPad(
                             Icon(
                                 imageVector = Icons.Outlined.Backspace,
                                 contentDescription = "删除",
-                                tint = BookColors.TextBlack
+                                tint = tc.textPrimary
                             )
                         } else if (key == "DATE") {
                             Icon(
                                 imageVector = Icons.Outlined.CalendarMonth,
                                 contentDescription = "选择日期",
-                                tint = BookColors.TextBlack
+                                tint = tc.textPrimary
                             )
                         } else {
                             Text(
                                 text = key,
-                                color = if (key == "完成") BookColors.White else BookColors.TextBlack,
+                                color = if (key == "完成") padOnPrimary else tc.textPrimary,
                                 fontWeight = if (key == "完成") FontWeight.SemiBold else FontWeight.Normal,
                                 fontSize = 24.sp
                             )
                         }
                     }
                 }
-            }
-        }
-        if (loading) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    color = primaryColor,
-                    strokeWidth = 2.dp
-                )
             }
         }
     }
@@ -945,6 +934,7 @@ private fun LazyGridScrollThumb(
     state: LazyGridState,
     modifier: Modifier = Modifier
 ) {
+    val tc = themeColors()
     val layoutInfo = state.layoutInfo
     val total = layoutInfo.totalItemsCount
     if (total <= 0) return
@@ -971,7 +961,7 @@ private fun LazyGridScrollThumb(
                 .height(with(density) { h.toDp() })
                 .offset(y = with(density) { offsetPx.toDp() })
                 .clip(RoundedCornerShape(2.5.dp))
-                .background(BookColors.TextGray.copy(alpha = 0.5f))
+                .background(tc.textSecondary.copy(alpha = 0.5f))
         )
     }
 }
@@ -985,13 +975,14 @@ private fun CategoryMigrateTargetDialog(
     onMigrate: (Long) -> Unit
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     var selectedId by remember(session.deletingCategoryId) { mutableStateOf<Long?>(null) }
     val typeLabel = if (session.categoryType == 1) "支出" else "收入"
 
     Dialog(onDismissRequest = { if (!migrating) onDismiss() }) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = BookColors.White,
+            color = tc.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
@@ -999,13 +990,13 @@ private fun CategoryMigrateTargetDialog(
                     text = "无法直接删除",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = BookColors.TextBlack
+                    color = tc.textPrimary
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "「${session.deletingCategoryName}」下仍有 ${session.pendingTransactionCount} 笔账单，请选择迁入的${typeLabel}分类后迁移并删除。",
                     fontSize = 14.sp,
-                    color = BookColors.TextBlack,
+                    color = tc.textPrimary,
                     lineHeight = 20.sp
                 )
                 Spacer(Modifier.height(12.dp))
@@ -1020,14 +1011,14 @@ private fun CategoryMigrateTargetDialog(
                     text = "可选${typeLabel}分类",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = BookColors.TextBlack
+                    color = tc.textPrimary
                 )
                 Spacer(Modifier.height(6.dp))
                 if (targetCategories.isEmpty()) {
                     Text(
                         text = "暂无其他同类型分类，请先新增一个分类后再删除本分类。",
                         fontSize = 14.sp,
-                        color = BookColors.TextGray
+                        color = tc.textSecondary
                     )
                 } else {
                     LazyColumn(
@@ -1054,7 +1045,7 @@ private fun CategoryMigrateTargetDialog(
                         onClick = onDismiss,
                         enabled = !migrating
                     ) {
-                        Text("取消", color = BookColors.TextBlack)
+                        Text("取消", color = tc.textPrimary)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
@@ -1065,9 +1056,9 @@ private fun CategoryMigrateTargetDialog(
                         enabled = selectedId != null && !migrating && targetCategories.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = primaryColor,
-                            contentColor = BookColors.White,
-                            disabledContainerColor = BookColors.TextGray.copy(alpha = 0.35f),
-                            disabledContentColor = BookColors.White.copy(alpha = 0.8f)
+                            contentColor = contentColorFor(primaryColor),
+                            disabledContainerColor = tc.textSecondary.copy(alpha = 0.35f),
+                            disabledContentColor = tc.textSecondary.copy(alpha = 0.8f)
                         )
                     ) {
                         Text("迁移")
@@ -1084,6 +1075,7 @@ private fun CategoryMigrateSelectableRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val tc = themeColors()
     val primaryColor = rememberThemePrimaryColor()
     Row(
         modifier = Modifier
@@ -1102,7 +1094,7 @@ private fun CategoryMigrateSelectableRow(
         Text(
             text = name,
             fontSize = 15.sp,
-            color = BookColors.TextBlack
+            color = tc.textPrimary
         )
     }
 }
@@ -1111,6 +1103,7 @@ private fun CategoryMigrateSelectableRow(
 private fun CategoryTab(
     label: String,
     selected: Boolean,
+    contentColor: Color,
     onClick: () -> Unit
 ) {
     Column(
@@ -1121,14 +1114,14 @@ private fun CategoryTab(
             text = label,
             fontSize = 16.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = BookColors.TextBlack.copy(alpha = if (selected) 1f else 0.65f)
+            color = contentColor.copy(alpha = if (selected) 1f else 0.65f)
         )
         Spacer(Modifier.height(6.dp))
         Box(
             Modifier
                 .width(56.dp)
                 .height(3.dp)
-                .background(if (selected) Color(0xFF1A1A1A) else Color.Transparent)
+                .background(if (selected) contentColor else Color.Transparent)
         )
     }
 }
@@ -1145,6 +1138,7 @@ private fun CategoryGridItem(
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val tc = themeColors()
     val primaryColor = rememberThemePrimaryColor()
     val iconSize = 52.dp
     val sideBtnSize = 28.dp
@@ -1168,7 +1162,7 @@ private fun CategoryGridItem(
                         .clip(CircleShape)
                         .background(
                             if (selected) primaryColor
-                            else BookColors.CategoryGridCircle
+                            else tc.categoryGridCircle
                         )
                         .then(
                             if (bookkeepingEnabled) {
@@ -1182,7 +1176,7 @@ private fun CategoryGridItem(
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = if (selected) BookColors.White else BookColors.CategoryGridIcon,
+                        tint = if (selected) Color.White else tc.categoryGridIcon,
                         modifier = Modifier.size(26.dp)
                     )
                 }
@@ -1194,14 +1188,14 @@ private fun CategoryGridItem(
                             .zIndex(1f)
                             .size(sideBtnSize)
                             .clip(CircleShape)
-                            .background(BookColors.RedExpense.copy(alpha = 0.4f))
+                            .background(tc.expense.copy(alpha = 0.4f))
                             .clickable(onClick = onDeleteClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = "删除",
-                            tint = BookColors.White,
+                            tint = Color.White,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1219,7 +1213,7 @@ private fun CategoryGridItem(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "编辑",
-                            tint = BookColors.TextBlack,
+                            tint = tc.textPrimary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1229,7 +1223,7 @@ private fun CategoryGridItem(
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = if (selected) primaryColor else BookColors.TextBlack,
+                color = if (selected) primaryColor else tc.textPrimary,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 lineHeight = 14.sp,

@@ -79,8 +79,8 @@ import com.wyjqwy.app.ui.AppUiState
 import com.wyjqwy.app.ui.AppViewModel
 import com.wyjqwy.app.ui.category.categoryIconForIconKey
 import com.wyjqwy.app.ui.category.categoryIconForName
-import com.wyjqwy.app.ui.theme.BookColors
 import com.wyjqwy.app.ui.theme.rememberThemePrimaryColor
+import com.wyjqwy.app.ui.theme.themeColors
 import com.wyjqwy.app.ui.util.groupTransactionsByDay
 import com.wyjqwy.app.ui.util.toAmountText
 import kotlinx.coroutines.channels.BufferOverflow
@@ -114,6 +114,7 @@ fun DetailScreen(
     listState: LazyListState
 ) {
     val primaryColor = rememberThemePrimaryColor()
+    val tc = themeColors()
     val density = LocalDensity.current
     val releaseThresholdPx = remember(density) { with(density) { 88.dp.toPx() } }
     val monthSwitchCooldownMs = 700L
@@ -276,7 +277,7 @@ fun DetailScreen(
                 TextButton(onClick = {
                     vm.deleteTransaction(tx.id)
                     pendingDeleteTx = null
-                }) { Text("删除", color = BookColors.RedExpense) }
+                }) { Text("删除", color = tc.expense) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteTx = null }) { Text("取消") }
@@ -392,7 +393,7 @@ fun DetailScreen(
                                     Row(
                                         Modifier
                                             .fillMaxWidth()
-                                            .background(BookColors.White)
+                                            .background(MaterialTheme.colorScheme.surface)
                                             .padding(horizontal = 12.dp, vertical = 8.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
@@ -431,7 +432,7 @@ fun DetailScreen(
                                                         modifier = Modifier
                                                             .size(36.dp)
                                                             .clip(CircleShape)
-                                                            .background(Color(0xFF2E7D32))
+                                                            .background(tc.income)
                                                             .clickable {
                                                                 vm.createTemplateFromTransaction(tx)
                                                                 closeMenu()
@@ -441,14 +442,14 @@ fun DetailScreen(
                                                         Icon(
                                                             imageVector = Icons.Outlined.Add,
                                                             contentDescription = "添加模板",
-                                                            tint = BookColors.White
+                                                            tint = Color.White
                                                         )
                                                     }
                                                     Box(
                                                         modifier = Modifier
                                                             .size(36.dp)
                                                             .clip(CircleShape)
-                                                            .background(BookColors.RedExpense)
+                                                            .background(tc.expense)
                                                             .clickable {
                                                                 pendingDeleteTx = tx
                                                                 closeMenu()
@@ -458,7 +459,7 @@ fun DetailScreen(
                                                         Icon(
                                                             imageVector = Icons.Outlined.DeleteOutline,
                                                             contentDescription = "删除明细",
-                                                            tint = BookColors.White
+                                                            tint = Color.White
                                                         )
                                                     }
                                                 }
