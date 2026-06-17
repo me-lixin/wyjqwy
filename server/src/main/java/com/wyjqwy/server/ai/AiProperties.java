@@ -9,12 +9,25 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.ai")
 public class AiProperties {
     /**
-     * 可选：zhipu / google
+     * 可选：bailian（阿里云百炼/DashScope）/ zhipu / google
+     * 亦可用别名：dashscope、aliyun
      */
-    private String provider = "zhipu";
+    private String provider = "bailian";
 
+    private Bailian bailian = new Bailian();
     private Zhipu zhipu = new Zhipu();
     private Google google = new Google();
+
+    @Data
+    public static class Bailian {
+        /** 百炼控制台 API Key：https://bailian.console.aliyun.com/ */
+        private String apiKey;
+        /** OpenAI 兼容模式根地址，末尾不要带 /chat/completions */
+        private String baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        /** 模型名，仅在此或 application.yml 中修改，勿写死在业务代码里 */
+        private String model = "qwen-plus-2025-07-28";
+        private double temperature = 0.1;
+    }
 
     @Data
     public static class Zhipu {

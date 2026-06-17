@@ -207,17 +207,55 @@ public class VoiceAccountingAiService {
         )).toList());
 
         return switch (resolveProvider()) {
+            case "bailian" -> requestCompletionFromBailian(systemPrompt, userPayload);
             case "google" -> requestCompletionFromGoogle(systemPrompt, userPayload);
             case "zhipu" -> requestCompletionFromZhipu(systemPrompt, userPayload);
-            default -> throw new BizException("不支持的 AI 提供商：" + resolveProvider());
+            default -> throw new BizException("不支持的 AI 提供商：" + properties.getProvider());
         };
     }
 
+    private String requestCompletionFromBailian(String systemPrompt, Map<String, Object> userPayload) {
+        AiProperties.Bailian cfg = properties.getBailian();
+        return requestOpenAiCompatibleChat(
+                cfg.getBaseUrl(),
+                cfg.getApiKey(),
+                cfg.getModel(),
+                cfg.getTemperature(),
+                systemPrompt,
+                userPayload,
+                "百炼"
+        );
+    }
+
     private String requestCompletionFromZhipu(String systemPrompt, Map<String, Object> userPayload) {
-        RestClient client = RestClient.builder().baseUrl(properties.getZhipu().getBaseUrl()).build();
+        AiProperties.Zhipu cfg = properties.getZhipu();
+        return requestOpenAiCompatibleChat(
+                cfg.getBaseUrl(),
+                cfg.getApiKey(),
+                cfg.getModel(),
+                0.1,
+                systemPrompt,
+                userPayload,
+                "智谱"
+        );
+    }
+
+    /**
+     * OpenAI Chat Completions 兼容接口（智谱、百炼等共用）。
+     */
+    private String requestOpenAiCompatibleChat(
+            String baseUrl,
+            String apiKey,
+            String model,
+            double temperature,
+            String systemPrompt,
+            Map<String, Object> userPayload,
+            String providerLabel
+    ) {
+        RestClient client = RestClient.builder().baseUrl(baseUrl).build();
         Map<String, Object> request = new HashMap<>();
-        request.put("model", properties.getZhipu().getModel());
-        request.put("temperature", 0.1);
+        request.put("model", model);
+        request.put("temperature", temperature);
         request.put("response_format", Map.of("type", "json_object"));
         request.put("messages", List.of(
                 Map.of("role", "system", "content", systemPrompt),
@@ -227,22 +265,26 @@ public class VoiceAccountingAiService {
         String responseBody = client.post()
                 .uri("/chat/completions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + properties.getZhipu().getApiKey())
+                .header("Authorization", "Bearer " + apiKey)
                 .body(request)
                 .retrieve()
                 .body(String.class);
 
         try {
             JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode error = root.path("error");
+            if (error.isObject() && StringUtils.hasText(error.path("message").asText())) {
+                throw new BizException(providerLabel + " AI 调用失败：" + error.path("message").asText());
+            }
             JsonNode content = root.path("choices").path(0).path("message").path("content");
             if (!StringUtils.hasText(content.asText())) {
-                throw new BizException("AI 返回为空");
+                throw new BizException(providerLabel + " AI 返回为空");
             }
             return content.asText();
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            throw new BizException("AI 接口响应解析失败");
+            throw new BizException(providerLabel + " AI 接口响应解析失败");
         }
     }
 
@@ -290,11 +332,18 @@ public class VoiceAccountingAiService {
 
     private String resolveProvider() {
         String p = properties.getProvider();
-        return StringUtils.hasText(p) ? p.trim().toLowerCase() : "zhipu";
+        if (!StringUtils.hasText(p)) {
+            return "bailian";
+        }
+        return switch (p.trim().toLowerCase()) {
+            case "dashscope", "aliyun" -> "bailian";
+            default -> p.trim().toLowerCase();
+        };
     }
 
     private String resolveApiKey() {
         return switch (resolveProvider()) {
+            case "bailian" -> properties.getBailian().getApiKey();
             case "google" -> properties.getGoogle().getApiKey();
             case "zhipu" -> properties.getZhipu().getApiKey();
             default -> null;

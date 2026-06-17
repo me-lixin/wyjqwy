@@ -4,7 +4,6 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/wyjqwy?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
     username: root
-#    password: Lx5456985...
     password: 11111111
     driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
@@ -28,8 +27,22 @@ app:
     access-expire-seconds: 720000
     refresh-expire-seconds: 2592000
   ai:
-    # 可选：zhipu / google（默认 zhipu）
-    provider: zhipu
+    # 对话记账 AI 提供商：bailian（默认）/ zhipu / google
+    # bailian 亦可用别名：dashscope、aliyun
+    provider: bailian
+    bailian:
+      # 百炼 / DashScope API Key：https://bailian.console.aliyun.com/
+      # 建议生产环境用环境变量：export DASHSCOPE_API_KEY=sk-xxx
+      api-key: sk-ws-H.RPMRDLE.7syp.MEUCIQCyoFfMttVztgxAaqNS1fvIIXmGxXGUlDdQjcPsq1h9LgIgKGWD-uAkU5t1IpUf7SBqt3XndKBunRVGds0V7sNThbg
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      # 当前使用的模型（改这里即可切换，无需改代码）
+      model: qwen-plus-2025-07-28
+      temperature: 0.1
+      # --- 控制台有免费额度的文本模型（任选其一填到 model）---
+      # 推荐对话记账：qwen-plus-2025-07-28 / qwen-max / qwen3.7-plus / glm-5
+      # 也可试：qwen-math-turbo / deepseek-r1-distill-qwen-7b / qwen-mt-flash
+      # 不推荐用于 JSON 记账解析（视觉/思考链，慢且贵）：qwen3-vl-235b-a22b-thinking
+      #   qwen3-vl-32b-thinking / qwen3-vl-30b-a3b-thinking
     zhipu:
       # 智谱开放平台 key：https://open.bigmodel.cn/  建议使用环境变量注入
       api-key: 78dcaf8f165344f18a2910b3d145f9c3.X3ZO6e66ZnVNbx4J
